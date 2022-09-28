@@ -133,6 +133,38 @@ def getFilesToUpload(backups,rootDir):
     return toUpload
 
 
+def getAvailableMemory():
+    try:
+        res = requests.get(f'https://cloud-api.yandex.net/v1/disk?fields=used_space%2Ctotal_space', headers=headers)
+        if not res.status_code == 200:
+            raise Exception('Не удалось получить инфо о свободном месте в облаке')
+        data = res.json()
+        return data['total_space'] - data['used_space']
+    except Exception:
+        raise Exception('Не удалось получить инфо о свободном месте в облаке')
+
+
+def prepareDirOnCloud(backups,rootDir):
+
+    for backup in backups:
+        dir = os.path.dirname(backup)
+        dirName = os.path.basename(dir)
+
+        createDirOnCloud('/'+ rootDir)
+        createDirOnCloud(f'{rootDir}/{dirName}')
+
+
+def createDirOnCloud(path):
+    try:
+        res = requests.put(f'{URL}/upload?path={path}', headers=headers)
+
+        if not res.status_code == 201 and not res.status_code == 404:
+            raise Exception(f'Не удалось создать каталог {path} в облаке')
+
+    except Exception:
+        raise Exception(f'Не удалось создать каталог {path} в облаке')
+
+
 def uploadOnYandexCloud():
 
     error = ''
@@ -148,24 +180,31 @@ def uploadOnYandexCloud():
         uploadSize = + os.stat(filePath1).st_size
         uploadSize = + os.stat(filePath2).st_size
 
-    avMemory = getAvailableMemory()
-
     if uploadSize ==0:
         writeLog('Нет новых файлов для выгрузки')
         return
 
-
+    avMemory = getAvailableMemory()
     toClear = uploadSize - avMemory
+
     if not toClear > 0:
         raise (f'Недостаточно места в облаке. Требуется еще {toClear/1024/1024} мб')
 
 
+    prepareDirOnCloud(fullBackupsToUpload,fullBpCloudPath)
+    prepareDirOnCloud(incrBackupsToUpload,incrBpCloudPath)
 
-    prepareDirOnCloud(errorText = error)
+    for backup in fullBackupsToUpload:
+        dir = os.path.dirname(backup)
+        dirName = os.path.basename(dir)
+        filename = os.path.basename(backup)
+        upload_file(backup,f'/{fullBpCloudPath}/{dirName}/{filename}')
 
-
-    for filePath in  filesToUpload:
-        upload_file(,filePath)
+    for backup in incrBackupsToUpload:
+        dir = os.path.dirname(backup)
+        dirName = os.path.basename(dir)
+        filename = os.path.basename(backup)
+        upload_file(backup,f'/{incrBpCloudPath}/{dirName}/{filename}')
 
 
 
@@ -182,7 +221,8 @@ def upload_file(loadfile, savefile, replace=False):
     res = requests.get(f'{URL}/upload?path={savefile}&overwrite={replace}', headers=headers).json()
     with open(loadfile, 'rb') as f:
         try:
-            requests.put(res['href'], files={'file': f})
+           res = requests.put(res['href'], files={'file': f})
+
         except KeyError:
             writeLog(res)
 
