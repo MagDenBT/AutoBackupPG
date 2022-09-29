@@ -2,6 +2,15 @@
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+# Этот модуль требуется импортировать в начале каждого скрипта.
+from lib.common import bootstrap
+# Экспорт базового класса для сценария. Он отвечает за настройку логгирования,
+# базовую валидацию параметров, перехват исключений и корректное завершение
+# скрипта и т.д.
+from lib.common.base_scenario import BaseScenario
+# Экспорт класса ошибок.
+from lib.common.errors import SACError
+
 import os
 import subprocess
 from datetime import datetime
@@ -231,13 +240,31 @@ def upload_file(loadfile, savefile, replace=False):
             raise Exception(f'Не удалось выгрузить файл {loadfile} в облако')
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
+class PGBackupScenario(BaseScenario):
 
-    createFullBackup()
-    try:
-        uploadOnYandexCloud()
-        writeLog('upload-', True, '')
-    except Exception as e:
-        writeLog('upload-',False,str(e))
+    def _validate_specific_data(self):
+        pass
+
+    def _after_init(self):
+        pass
+
+    def _get_available_tests(self):
+        return [
+            ("test-name", lambda: True, False),
+        ]
+
+    ## Метод, реализующий основную логику. Он запускается в случае, если
+    # test-mode == False.
+    def _real(self):
+        createFullBackup()
+        try:
+            uploadOnYandexCloud()
+            writeLog('upload-', True, '')
+        except Exception as e:
+            writeLog('upload-', False, str(e))
+
+
+i# Позволяет запускать сценарий, если данный файл был запущен напрямую.
+if __name__ == "__main__":
+    PGBackupScenario.main()
 
