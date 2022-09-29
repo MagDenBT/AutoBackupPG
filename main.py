@@ -9,11 +9,11 @@ import random
 import requests as requests
 
 URL = 'https://cloud-api.yandex.net/v1/disk/resources'
-TOKEN = 'AQAAAAAz55vbAAc-fohhPDQSvU5kroy21-HguNA'
+TOKEN = '1111'
 headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': f'OAuth {TOKEN}'}
-rootCloudPath = '/Postgresql backups'
-fullBpCloudPath = '/Full'
-incrBpCloudPath = '/Incremental'
+rootCloudPath = 'Postgresql backups'
+fullBpCloudPath = 'Full'
+incrBpCloudPath = 'Incremental'
 
 tempPathToFullBackup = ''
 pathToFullBackup = ''
@@ -122,11 +122,12 @@ def getFilesToUpload(backups,rootDir):
 
 
         try:
-            res = requests.get(f'{URL}/upload?path=/{rootDir}/{dirName}/{fileName}', headers=headers)
+            res = requests.get(f'{URL}?path=/{rootCloudPath}/{rootDir}/{dirName}/{fileName}', headers=headers)
             if not res.status_code == 200:
-                if not res.status_code == 404:
+                if res.status_code == 404:
+                    toUpload.append(backup)
+                else:
                     raise Exception('Не удалось расчитать файлы для выгрузки в облако')
-            toUpload.append(backup)
         except Exception:
             raise Exception('Не удалось расчитать файлы для выгрузки в облако')
 
@@ -145,20 +146,27 @@ def getAvailableMemory():
 
 
 def prepareDirOnCloud(backups,rootDir):
-
+    paths = []
     for backup in backups:
         dir = os.path.dirname(backup)
         dirName = os.path.basename(dir)
+        paths.append(dirName)
 
-        createDirOnCloud('/'+ rootDir)
-        createDirOnCloud(f'{rootDir}/{dirName}')
+    paths = set(paths)
+    for dirName in paths:
+        step = '/'+ rootCloudPath
+        createDirOnCloud(step)
+        step += "/"+ rootDir
+        createDirOnCloud(step)
+        step += "/"+ dirName
+        createDirOnCloud(step)
 
 
 def createDirOnCloud(path):
     try:
-        res = requests.put(f'{URL}/upload?path={path}', headers=headers)
+        res = requests.put(f'{URL}?path={path}', headers=headers)
 
-        if not res.status_code == 201 and not res.status_code == 404:
+        if not res.status_code == 201 and not res.status_code == 409:
             raise Exception(f'Не удалось создать каталог {path} в облаке')
 
     except Exception:
@@ -167,28 +175,29 @@ def createDirOnCloud(path):
 
 def uploadOnYandexCloud():
 
-    error = ''
 
     fullBackups = getFilesListOnDisk(pathToFullBackup)
     incrBackups = getFilesListOnDisk(pathToIncrementalBackup)
 
     fullBackupsToUpload = getFilesToUpload(fullBackups,fullBpCloudPath)
-    incrBackupsToUpload = getFilesToUpload(fullBackups,incrBpCloudPath)
+    incrBackupsToUpload = getFilesToUpload(incrBackups,incrBpCloudPath)
 
     uploadSize = 0
-    for filePath1,filePath2 in fullBackupsToUpload,incrBackupsToUpload:
-        uploadSize = + os.stat(filePath1).st_size
-        uploadSize = + os.stat(filePath2).st_size
+    for filePath in fullBackupsToUpload:
+        uploadSize += os.stat(filePath).st_size
 
-    if uploadSize ==0:
+    for filePath in incrBackupsToUpload:
+        uploadSize += os.stat(filePath).st_size
+
+    if uploadSize == 0:
         writeLog('Нет новых файлов для выгрузки')
         return
 
     avMemory = getAvailableMemory()
     toClear = uploadSize - avMemory
 
-    if not toClear > 0:
-        raise (f'Недостаточно места в облаке. Требуется еще {toClear/1024/1024} мб')
+    if toClear > 0:
+        raise Exception(f'Недостаточно места в облаке. Требуется еще {toClear/1024/1024} мб')
 
 
     prepareDirOnCloud(fullBackupsToUpload,fullBpCloudPath)
@@ -198,13 +207,13 @@ def uploadOnYandexCloud():
         dir = os.path.dirname(backup)
         dirName = os.path.basename(dir)
         filename = os.path.basename(backup)
-        upload_file(backup,f'/{fullBpCloudPath}/{dirName}/{filename}')
+        upload_file(backup,f'/{rootCloudPath}/{fullBpCloudPath}/{dirName}/{filename}')
 
     for backup in incrBackupsToUpload:
         dir = os.path.dirname(backup)
         dirName = os.path.basename(dir)
         filename = os.path.basename(backup)
-        upload_file(backup,f'/{incrBpCloudPath}/{dirName}/{filename}')
+        upload_file(backup,f'/{rootCloudPath}/{incrBpCloudPath}/{dirName}/{filename}')
 
 
 
@@ -222,7 +231,8 @@ def upload_file(loadfile, savefile, replace=False):
     with open(loadfile, 'rb') as f:
         try:
            res = requests.put(res['href'], files={'file': f})
-
+           if not res.status_code == 201:
+               raise Exception(f'Не удалось выгрузить файл {loadfile} в облако')
         except KeyError:
             writeLog(res)
 
@@ -231,3 +241,5 @@ def upload_file(loadfile, savefile, replace=False):
 if __name__ == '__main__':
     init()
     createFullBackup()
+    uploadOnYandexCloud()
+
