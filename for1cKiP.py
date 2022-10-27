@@ -17,6 +17,7 @@ from datetime import datetime
 import random
 import requests as requests
 
+# CLoud settings
 URL = 'https://cloud-api.yandex.net/v1/disk/resources'
 TOKEN = '1111'
 headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': f'OAuth {TOKEN}'}
@@ -24,14 +25,18 @@ rootCloudPath = 'Postgresql backups'
 fullBpCloudPath = 'Full'
 incrBpCloudPath = 'Incremental'
 
-postgresqlIsntancePath = "C:\\Program Files\\PostgreSQL\\14.4-1.1C\\"
+#Local machine settings
+
+tempPathToFullBackup = 'C:\\pgBackIncr'                                  #The path to the temporary directory for full backup
+pathToFullBackup = 'C:\\Postgresql full backups'                         #The path to the permanent  directory for full backup
+pathToIncrementalBackup = 'C:\\pg_log_archive'                           #The path to the WAL files.(Incremental backups)
+logPath = 'C:\\pgBackupLog'                                              #The path to the script logs
+
+postgresqlIsntancePath = "C:\\Program Files\\PostgreSQL\\14.4-1.1C\\"    #The path to PostgreSQL
 backuper = postgresqlIsntancePath + "bin\\pg_basebackup.exe"
-tempPathToFullBackup = 'F:\\pgBackIncr'
-pathToFullBackup = 'F:\\Postgresql full backups'
-pathToIncrementalBackup = 'F:\\pg_log_archive'
 postgresqlUsername = "postgres"
 postgresqlPassword = '1122'
-logPath = 'F:\\pgBackupLog'
+
 
 def generateLabel(millisec = False):
 
@@ -45,13 +50,13 @@ def generateLabel(millisec = False):
 
 
 def fileOperationsFullBackup():
-    files = ['backup_manifest', "base.tar" if os.path.exists(tempPathToFullBackup + '\\base.tar') else "base.tar.gz"]
+    files = getFilesListOnDisk(tempPathToFullBackup)
     if not os.path.exists(f'{pathToFullBackup}\\{label}'):
-        os.makedirs(f'{pathToFullBackup}\\{label}')
+       os.makedirs(f'{pathToFullBackup}\\{label}')
 
     # move & rename
     for file in files:
-        os.replace(f'{tempPathToFullBackup}\\{file}', f'{pathToFullBackup}\\{label}\\{label}__{file}')
+        os.replace(file, f'{pathToFullBackup}\\{label}\\{label}__{os.path.basename(file)}')
 
 
 def clearTempDirFullBackup():
