@@ -56,9 +56,10 @@ def fileOperationsFullBackup():
 
 def clearTempDirFullBackup():
     # clear the directory of any files
-    for path in os.listdir(tempPathToFullBackup):
-        if os.path.exists(f'{tempPathToFullBackup}\\{path}'):
-            os.remove(f'{tempPathToFullBackup}\\{path}')
+    if os.path.exists(tempPathToFullBackup):
+        for path in os.listdir(tempPathToFullBackup):
+            if os.path.exists(f'{tempPathToFullBackup}\\{path}'):
+                os.remove(f'{tempPathToFullBackup}\\{path}')
 
 
 def createFullBackup():
@@ -83,13 +84,13 @@ def createFullBackup():
         stderr=subprocess.PIPE,
         env=my_env,
     )
-
-    if not process.stderr or 'exists but is not empty' not in process.stderr:
+    textError = process.stderr.decode()
+    if textError == "":
         fileOperationsFullBackup()
         clearTempDirFullBackup()
         writeLog('backup-', True)
     else:
-        writeLog('backup-', False)
+        writeLog('backup-', False,textError)
 
 def writeLog(filePref,success,text = ''):
     result = "Success_" if success else 'FAIL_'
@@ -130,9 +131,9 @@ def getFilesToUpload(backups,rootDir):
                 if res.status_code == 404:
                     toUpload.append(backup)
                 else:
-                    raise Exception('Не удалось определить файлы для выгрузки в облако')
-        except Exception:
-            raise Exception('Не удалось определить файлы для выгрузки в облако')
+                    raise Exception(f'При синхронизации с облаком не удалось определить файлы для выгрузки. {res.text}')
+        except Exception as e:
+            raise Exception(e)
 
     return toUpload
 
@@ -141,11 +142,11 @@ def getAvailableMemory():
     try:
         res = requests.get(f'https://cloud-api.yandex.net/v1/disk?fields=used_space%2Ctotal_space', headers=headers)
         if not res.status_code == 200:
-            raise Exception('Не удалось получить инфо о свободном месте в облаке')
+            raise Exception(f'Не удалось получить инфо о свободном месте в облаке. {res.text}')
         data = res.json()
         return data['total_space'] - data['used_space']
-    except Exception:
-        raise Exception('Не удалось получить инфо о свободном месте в облаке')
+    except Exception as e:
+            raise Exception(e)
 
 
 def prepareDirOnCloud(backups,rootDir):
@@ -170,10 +171,10 @@ def createDirOnCloud(path):
         res = requests.put(f'{URL}?path={path}', headers=headers)
 
         if not res.status_code == 201 and not res.status_code == 409:
-            raise Exception(f'Не удалось создать каталог {path} в облаке')
+            raise Exception(f'Не удалось создать каталог {path} в облаке. {res.text}')
 
-    except Exception:
-        raise Exception(f'Не удалось создать каталог {path} в облаке')
+    except Exception as e:
+            raise Exception(e)
 
 
 def uploadOnYandexCloud():
@@ -235,23 +236,9 @@ def upload_file(loadfile, savefile, replace=False):
         try:
            res = requests.put(res['href'], files={'file': f})
            if not res.status_code == 201:
-               raise Exception(f'Не удалось выгрузить файл {loadfile} в облако')
-        except Exception:
-            raise Exception(f'Не удалось выгрузить файл {loadfile} в облако')
-
-
-class PGBackupScenario(BaseScenario):
-
-    def _validate_specific_data(self):
-        pass
-
-    def _after_init(self):
-        pass
-
-    def _get_available_tests(self):
-        return [
-            ("test-name", lambda: True, False),
-        ]
+               raise Exception(f'Не удалось выгрузить файл {loadfile} в облако. {res.text}')
+        except Exception as e:
+            raise Exception(e)
 
     ## Метод, реализующий основную логику. Он запускается в случае, если
     # test-mode == False.
