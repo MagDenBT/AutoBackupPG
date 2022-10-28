@@ -29,8 +29,7 @@ postgresqlUsername = "postgres"
 postgresqlPassword = '1122'
 
 
-def generateLabel(millisec = False):
-
+def generateLabel(millisec=False):
     if millisec:
         timeStamp = datetime.utcnow().strftime('%Y_%m_%d____%H-%M-%S.%f')[:-3]
     else:
@@ -43,7 +42,7 @@ def generateLabel(millisec = False):
 def fileOperationsFullBackup():
     files = getFilesListOnDisk(tempPathToFullBackup)
     if not os.path.exists(f'{pathToFullBackup}\\{label}'):
-       os.makedirs(f'{pathToFullBackup}\\{label}')
+        os.makedirs(f'{pathToFullBackup}\\{label}')
 
     # move & rename
     for file in files:
@@ -86,9 +85,10 @@ def createFullBackup():
         clearTempDirFullBackup()
         writeLog('backup-', True)
     else:
-        writeLog('backup-', False,textError)
+        raise Exception(textError)
 
-def writeLog(filePref,success,text = ''):
+
+def writeLog(filePref, success, text=''):
     result = "Success_" if success else 'FAIL_'
     if not os.path.exists(logPath):
         os.makedirs(logPath)
@@ -113,13 +113,12 @@ def getFilesListOnDisk(*args):
     return filesList
 
 
-def getFilesToUpload(backups,rootDir):
+def getFilesToUpload(backups, rootDir):
     toUpload = []
     for backup in backups:
         dir = os.path.dirname(backup)
         dirName = os.path.basename(dir)
         fileName = os.path.basename(backup)
-
 
         try:
             res = requests.get(f'{URL}?path=/{rootCloudPath}/{rootDir}/{dirName}/{fileName}', headers=headers)
@@ -142,10 +141,10 @@ def getAvailableMemory():
         data = res.json()
         return data['total_space'] - data['used_space']
     except Exception as e:
-            raise Exception(e)
+        raise Exception(e)
 
 
-def prepareDirOnCloud(backups,rootDir):
+def prepareDirOnCloud(backups, rootDir):
     paths = []
     for backup in backups:
         dir = os.path.dirname(backup)
@@ -154,11 +153,11 @@ def prepareDirOnCloud(backups,rootDir):
 
     paths = set(paths)
     for dirName in paths:
-        step = '/'+ rootCloudPath
+        step = '/' + rootCloudPath
         createDirOnCloud(step)
-        step += "/"+ rootDir
+        step += "/" + rootDir
         createDirOnCloud(step)
-        step += "/"+ dirName
+        step += "/" + dirName
         createDirOnCloud(step)
 
 
@@ -170,17 +169,15 @@ def createDirOnCloud(path):
             raise Exception(f'Не удалось создать каталог {path} в облаке. {res.text}')
 
     except Exception as e:
-            raise Exception(e)
+        raise Exception(e)
 
 
 def uploadOnYandexCloud():
-
-
     fullBackups = getFilesListOnDisk(pathToFullBackup)
     incrBackups = getFilesListOnDisk(pathToIncrementalBackup)
 
-    fullBackupsToUpload = getFilesToUpload(fullBackups,fullBpCloudPath)
-    incrBackupsToUpload = getFilesToUpload(incrBackups,incrBpCloudPath)
+    fullBackupsToUpload = getFilesToUpload(fullBackups, fullBpCloudPath)
+    incrBackupsToUpload = getFilesToUpload(incrBackups, incrBpCloudPath)
 
     uploadSize = 0
     for filePath in fullBackupsToUpload:
@@ -190,31 +187,29 @@ def uploadOnYandexCloud():
         uploadSize += os.stat(filePath).st_size
 
     if uploadSize == 0:
-        writeLog('upload-',True,'Нет новых файлов для выгрузки')
+        writeLog('upload-', True, 'Нет новых файлов для выгрузки')
         return
 
     avMemory = getAvailableMemory()
     toClear = uploadSize - avMemory
 
     if toClear > 0:
-        raise Exception(f'Недостаточно места в облаке. Требуется еще {toClear/1024/1024} мб')
+        raise Exception(f'Недостаточно места в облаке. Требуется еще {toClear / 1024 / 1024} мб')
 
-
-    prepareDirOnCloud(fullBackupsToUpload,fullBpCloudPath)
-    prepareDirOnCloud(incrBackupsToUpload,incrBpCloudPath)
+    prepareDirOnCloud(fullBackupsToUpload, fullBpCloudPath)
+    prepareDirOnCloud(incrBackupsToUpload, incrBpCloudPath)
 
     for backup in fullBackupsToUpload:
         dir = os.path.dirname(backup)
         dirName = os.path.basename(dir)
         filename = os.path.basename(backup)
-        upload_file(backup,f'/{rootCloudPath}/{fullBpCloudPath}/{dirName}/{filename}')
+        upload_file(backup, f'/{rootCloudPath}/{fullBpCloudPath}/{dirName}/{filename}')
 
     for backup in incrBackupsToUpload:
         dir = os.path.dirname(backup)
         dirName = os.path.basename(dir)
         filename = os.path.basename(backup)
-        upload_file(backup,f'/{rootCloudPath}/{incrBpCloudPath}/{dirName}/{filename}')
-
+        upload_file(backup, f'/{rootCloudPath}/{incrBpCloudPath}/{dirName}/{filename}')
 
 
 def create_folder(path):
@@ -230,9 +225,9 @@ def upload_file(loadfile, savefile, replace=False):
     res = requests.get(f'{URL}/upload?path={savefile}&overwrite={replace}', headers=headers).json()
     with open(loadfile, 'rb') as f:
         try:
-           res = requests.put(res['href'], files={'file': f})
-           if not res.status_code == 201:
-               raise Exception(f'Не удалось выгрузить файл {loadfile} в облако. {res.text}')
+            res = requests.put(res['href'], files={'file': f})
+            if not res.status_code == 201:
+                raise Exception(f'Не удалось выгрузить файл {loadfile} в облако. {res.text}')
         except Exception as e:
             raise Exception(e)
 
@@ -240,10 +235,14 @@ def upload_file(loadfile, savefile, replace=False):
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
-    createFullBackup()
+    try:
+        createFullBackup()
+        writeLog('backup-', True, '')
+    except Exception as e:
+        writeLog('backup-', False, str(e))
+
     try:
         uploadOnYandexCloud()
         writeLog('upload-', True, '')
     except Exception as e:
-        writeLog('upload-',False,str(e))
-
+        writeLog('upload-', False, str(e))
