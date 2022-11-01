@@ -18,8 +18,9 @@ incrBpCloudPath = 'Incremental'
 
 #Local machine settings
 
+customPath = 'Accounting department'                                     #Catalog for logical structure
 tempPathToFullBackup = 'C:\\pgBackIncr'                                  #The path to the temporary directory for full backup
-pathToFullBackup = 'C:\\Postgresql full backups'                         #The path to the permanent  directory for full backup
+pathToFullBackup = f'C:\\{customPath}\\Postgresql full backups'          #The path to the permanent  directory for full backup
 pathToIncrementalBackup = 'C:\\pg_log_archive'                           #The path to the WAL files.(Incremental backups)
 logPath = 'C:\\pgBackupLog'                                              #The path to the script logs
 
@@ -153,7 +154,9 @@ def prepareDirOnCloud(backups, rootDir):
 
     paths = set(paths)
     for dirName in paths:
-        step = '/' + rootCloudPath
+        step =  '/' + customPath
+        createDirOnCloud(step)
+        step += '/' + rootCloudPath
         createDirOnCloud(step)
         step += "/" + rootDir
         createDirOnCloud(step)

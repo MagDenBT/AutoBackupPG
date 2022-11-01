@@ -27,8 +27,9 @@ incrBpCloudPath = 'Incremental'
 
 #Local machine settings
 
+customPath = 'Accounting department'                                     #Catalog for logical structure
 tempPathToFullBackup = 'C:\\pgBackIncr'                                  #The path to the temporary directory for full backup
-pathToFullBackup = 'C:\\Postgresql full backups'                         #The path to the permanent  directory for full backup
+pathToFullBackup = f'C:\\{customPath}\\Postgresql full backups'          #The path to the permanent  directory for full backup
 pathToIncrementalBackup = 'C:\\pg_log_archive'                           #The path to the WAL files.(Incremental backups)
 logPath = 'C:\\pgBackupLog'                                              #The path to the script logs
 
@@ -36,6 +37,7 @@ postgresqlIsntancePath = "C:\\Program Files\\PostgreSQL\\14.4-1.1C\\"    #The pa
 backuper = postgresqlIsntancePath + "bin\\pg_basebackup.exe"
 postgresqlUsername = "postgres"
 postgresqlPassword = '1122'
+
 
 def generateLabel(millisec=False):
     if millisec:
@@ -161,7 +163,9 @@ def prepareDirOnCloud(backups, rootDir):
 
     paths = set(paths)
     for dirName in paths:
-        step = '/' + rootCloudPath
+        step =  '/' + customPath
+        createDirOnCloud(step)
+        step += '/' + rootCloudPath
         createDirOnCloud(step)
         step += "/" + rootDir
         createDirOnCloud(step)
@@ -238,8 +242,6 @@ def upload_file(loadfile, savefile, replace=False):
                 raise Exception(f'Не удалось выгрузить файл {loadfile} в облако. {res.text}')
         except Exception as e:
             raise Exception(e)
-
-
 
     ## Метод, реализующий основную логику. Он запускается в случае, если
     # test-mode == False.
