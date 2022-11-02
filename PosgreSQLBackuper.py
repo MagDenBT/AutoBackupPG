@@ -3,7 +3,10 @@
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import os
+import pathlib
+import shutil
 import subprocess
+import traceback
 from datetime import datetime
 import random
 import requests as requests
@@ -19,7 +22,7 @@ def main():
         writeLog('backup-', False, message)
 
     try:
-        createFullBackup()
+        # createFullBackup()
         writeLog('backup-', True, '')
     except Exception as e:
         writeLog('backup-', False, str(e))
@@ -49,7 +52,7 @@ def setParam(newArgs=None):
         # Generating Required Parameters
 
         # CLoud settings
-        args.update('TOKEN', '1111')
+        args.update({'TOKEN': '1111'})
 
         # Paths settings
         """
@@ -57,40 +60,48 @@ def setParam(newArgs=None):
         On the local machine - disk:\rootDir\customDir\fullBpDir and for WAL-files - the one you specify
         In the cloud - /rootDir/customDir/fullBpDir and for WAL-files - /rootDir/customDir/"LastDirectoryIn(localPathToWALFiles)"
         """
-        args.update('disk', 'C')
-        args.update('rootDir', 'Postgresql backups')
-        args.update('customDir', 'Accounting department')
-        args.update('fullBpDir', 'Full')
-        args.update('localPathToWALFiles', 'C:\\pg_log_archive')    # The path of the WAL files.(aka Incremental backups)
+        args.update({'disk': 'C'})
+        args.update({'rootDir': 'Postgresql backups'})
+        args.update({'customDir': 'Accounting department'})
+        args.update({'fullBpDir': 'Full'})
+        args.update({'localPathToWALFiles': 'C:\\pg_log_archive'})    # The path of the WAL files.(aka Incremental backups)
 
         # PostgreSQL settings
-        args.update('postgresqlIsntancePath', "C:\\Program Files\\PostgreSQL\\14.4-1.1C\\")  # The path to PostgreSQL
-        args.update('postgresqlUsername', "postgres")
-        args.update('postgresqlPassword', '1122')
+        args.update({'postgresqlIsntancePath': "C:\\Program Files\\PostgreSQL\\14.4-1.1C\\"})  # The path to PostgreSQL
+        args.update({'postgresqlUsername': "postgres"})
+        args.update({'postgresqlPassword': '1122'})
 
     _addParams(args)
 
 
 def _addParams(args):
-    args.update('headers', {'Content-Type': 'application/json', 'Accept': 'application/json',
-                            'Authorization': f'OAuth {args["TOKEN"]}'})
-    args.update('pathToFullBackup',
-                f'{args["rootDir"]}:\\{args["customDir"]}\\{args["fullBpDir"]}')  # The path to the permanent  directory for full backup
+    args.update({'headers': {'Content-Type': 'application/json', 'Accept': 'application/json',
+                            'Authorization': f'OAuth {args["TOKEN"]}'}})
+    args.update({'pathToFullBackupLocal':
+                f'{args["disk"]}:\\{args["rootDir"]}\\{args["customDir"]}\\{args["fullBpDir"]}'})  # The path to the permanent  directory for full backup
+
+
+
+    # args.update({'incrBpDir': incrBpDir})
+
+    args.update({'pathToFullBackupCloud':
+                     f'/{args["rootDir"]}/{args["customDir"]}/{args["fullBpDir"]}'})
 
     incrBpDir = os.path.basename(args["localPathToWALFiles"])
-    args.update('incrBpDir', incrBpDir)
+    args.update({'pathToIncrBackupCloud':
+                     f'/{args["rootDir"]}/{args["customDir"]}/{incrBpDir}'})
 
     if args.get('backuper') == None:
-        args.update('backuper', args["postgresqlIsntancePath"] + 'bin\\pg_basebackup.exe')
+        args.update({'backuper': args["postgresqlIsntancePath"] + 'bin\\pg_basebackup.exe'})
 
     if args.get('tempPath') == None:
-        args.update('tempPath', './temp')  # The path to the temporary directory for full backup
+        args.update({'tempPath': './temp'})  # The path to the temporary directory for full backup
 
     if args.get('logPath') == None:
-        args.update('logPath', './logs')  # The path to the script logs
+        args.update({'logPath': './logs'})  # The path to the script logs
 
     if args.get('URL') == None:
-        args.update('URL', 'https://cloud-api.yandex.net/v1/disk/resources')
+        args.update({'URL': 'https://cloud-api.yandex.net/v1/disk/resources'})
 
 def generateLabel(millisec=False):
     if millisec:
@@ -103,12 +114,12 @@ def generateLabel(millisec=False):
 
 def fileOperationsFullBackup():
     files = getFilesListOnDisk(args["tempPath"])
-    if not os.path.exists(f'{args["pathToFullBackup"]}\\{label}'):
-        os.makedirs(f'{args["pathToFullBackup"]}\\{label}')
+    if not os.path.exists(f'{args["pathToFullBackupLocal"]}\\{label}'):
+        os.makedirs(f'{args["pathToFullBackupLocal"]}\\{label}')
 
     # move & rename
     for file in files:
-        os.replace(file, f'{args["pathToFullBackup"]}\\{label}\\{label}__{os.path.basename(file)}')
+        shutil.move(file, f'{args["pathToFullBackupLocal"]}\\{label}\\{label}__{os.path.basename(file)}')
 
 def clearTempDirFullBackup():
     # clear the directory of any files
@@ -149,7 +160,7 @@ def createFullBackup():
 def writeLog(filePref, success, text=''):
     result = "Success_" if success else 'FAIL_'
     if not os.path.exists(args["logPath"]):
-        os.makedirs(args["ogPath"])
+        os.makedirs(args["logPath"])
     path = f'{args["logPath"]}\\{filePref}{result}{generateLabel(True)}.txt'
     file = open(path, "w")
     file.write(text)
@@ -159,32 +170,30 @@ def getFilesListOnDisk(*args):
     filesList = []
 
     for path in args:
-
         for root, dirs, files in os.walk(path):
             for filename in files:
-                filesList.append(root + '\\' + filename)
-
-            for dir in dirs:
-                filesList.extend(getFilesListOnDisk(root + '\\' + dir))
+                filesList.append(os.path.join(root,filename))
 
     return filesList
 
-def getFilesToUpload(backups, rootDir):
+def getFilesToUpload(backups, pathCloud, withLastDir = True):
     toUpload = []
     for backup in backups:
         dir = os.path.dirname(backup)
         dirName = os.path.basename(dir)
         fileName = os.path.basename(backup)
+        if withLastDir:
+            fileName = f'{dirName}/{fileName}'
 
         try:
-            res = requests.get(f'{args["URL"]}?path=/{args["rootDir"]}/{rootDir}/{dirName}/{fileName}', headers=args["headers"])
+            res = requests.get(f'{args["URL"]}?path={pathCloud}/{fileName}', headers=args["headers"])
             if not res.status_code == 200:
                 if res.status_code == 404:
                     toUpload.append(backup)
                 else:
                     raise Exception(f'При синхронизации с облаком не удалось определить файлы для выгрузки. {res.text}')
         except Exception as e:
-            raise Exception(e)
+            raise Exception(f'{traceback.format_exc()}\n{e}')
 
     return toUpload
 
@@ -196,42 +205,50 @@ def getAvailableMemory():
         data = res.json()
         return data['total_space'] - data['used_space']
     except Exception as e:
-        raise Exception(e)
+        raise Exception(f'{traceback.format_exc()}\n{e}')
 
-def prepareDirOnCloud(backups, rootDir):
-    paths = []
-    for backup in backups:
-        dir = os.path.dirname(backup)
-        dirName = os.path.basename(dir)
-        paths.append(dirName)
+def prepareDirOnCloud(backups, pathCloud, withLastDir = True):
 
-    paths = set(paths)
-    for dirName in paths:
-        step =  '/' + args["rootDir"]
+    requerdPath = pathlib.Path(pathCloud).parts
+    i = 1
+    step = ''
+    while i < len(requerdPath):
+        step += '/' + requerdPath[i]
         createDirOnCloud(step)
-        step += '/' + args["customDir"]
-        createDirOnCloud(step)
-        step += "/" + rootDir
-        createDirOnCloud(step)
-        step += "/" + dirName
-        createDirOnCloud(step)
+        i = i + 1
+
+
+    if withLastDir:
+        paths = []
+        for backup in backups:
+            dir = os.path.dirname(backup)
+            dirName = os.path.basename(dir)
+            paths.append(dirName)
+
+        paths = set(paths)
+        for dirName in paths:
+            createDirOnCloud(f'{pathCloud}/{dirName}')
 
 def createDirOnCloud(path):
     try:
-        res = requests.put(f'{args["URL"]}?path={args["path"]}', headers=args["headers"])
+        res = requests.put(f'{args["URL"]}?path={path}', headers=args["headers"])
 
         if not res.status_code == 201 and not res.status_code == 409:
             raise Exception(f'Не удалось создать каталог {path} в облаке. {res.text}')
 
     except Exception as e:
-        raise Exception(e)
+        raise Exception(f'{traceback.format_exc()}\n{e}')
 
 def uploadOnYandexCloud():
-    fullBackups = getFilesListOnDisk(args["pathToFullBackup"])
+
+    fullBackups = getFilesListOnDisk(args["pathToFullBackupLocal"])
     incrBackups = getFilesListOnDisk(args["localPathToWALFiles"])
 
-    fullBackupsToUpload = getFilesToUpload(fullBackups, args["fullBpDir"])
-    incrBackupsToUpload = getFilesToUpload(incrBackups, args["incrBpDir"])
+    pathToFullBackupCloud = args["pathToFullBackupCloud"]
+    pathToIncrBackupCloud = args["pathToIncrBackupCloud"]
+
+    fullBackupsToUpload = getFilesToUpload(fullBackups, pathToFullBackupCloud)
+    incrBackupsToUpload = getFilesToUpload(incrBackups, pathToIncrBackupCloud,False)
 
     uploadSize = 0
     for filePath in fullBackupsToUpload:
@@ -250,20 +267,19 @@ def uploadOnYandexCloud():
     if toClear > 0:
         raise Exception(f'Недостаточно места в облаке. Требуется еще {toClear / 1024 / 1024} мб')
 
-    prepareDirOnCloud(fullBackupsToUpload, args["fullBpDir"])
-    prepareDirOnCloud(incrBackupsToUpload, args["incrBpDir"])
+
+    prepareDirOnCloud(fullBackupsToUpload, pathToFullBackupCloud)
+    prepareDirOnCloud(incrBackupsToUpload, pathToIncrBackupCloud,False)
 
     for backup in fullBackupsToUpload:
         dir = os.path.dirname(backup)
         dirName = os.path.basename(dir)
         filename = os.path.basename(backup)
-        upload_file(backup, f'/{args["rootDir"]}/{args["fullBpDir"]}/{dirName}/{filename}')
+        upload_file(backup, f'{pathToFullBackupCloud}/{dirName}/{filename}')
 
     for backup in incrBackupsToUpload:
-        dir = os.path.dirname(backup)
-        dirName = os.path.basename(dir)
         filename = os.path.basename(backup)
-        upload_file(backup, f'/{args["rootDir"]}/{args["incrBpDir"]}/{dirName}/{filename}')
+        upload_file(backup, f'{pathToIncrBackupCloud}/{filename}')
 
 def create_folder(path):
     """Создание папки. \n path: Путь к создаваемой папке."""
@@ -281,7 +297,7 @@ def upload_file(loadfile, savefile, replace=False):
             if not res.status_code == 201:
                 raise Exception(f'Не удалось выгрузить файл {loadfile} в облако. {res.text}')
         except Exception as e:
-            raise Exception(e)
+            raise Exception(f'{traceback.format_exc()}\n{e}')
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
