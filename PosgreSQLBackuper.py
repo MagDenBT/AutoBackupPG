@@ -14,7 +14,7 @@ import requests as requests
 args = {}
 
 def main():
-
+    # 123
     setParam()
 
     message = ''
@@ -22,7 +22,7 @@ def main():
         writeLog('backup-', False, message)
 
     try:
-        # createFullBackup()
+         createFullBackup()
         writeLog('backup-', True, '')
     except Exception as e:
         writeLog('backup-', False, str(e))
