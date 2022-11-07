@@ -1,0 +1,81 @@
+There are 3 scripts in the package:
+PostgreSQLBackuper.py - Backer itself and synchronizer with Yandex cloud
+LauncherPostgreSQLBackupFor1cKiP.py - launcher for creating backups through 1c KIP. Admin Center
+LauncherPostgreSQLUploadToCloudFor1cKiP.py - launcher for uploading new backups to the cloud via 1c KIP. Admin Center
+
+Additionally for 1с KIP. Admin Center
+python-3.10.8.amd64.for1cKIP.zip - Python 3.10 interpreter with the necessary libraries to run the script
+LauncherFor1cKiP.yml - configuration file for the so-called. "Dictionary" in KIP. Works on Windows, should work on Linux too
+
+
+The core is a regular utility for creating full archives of the entire PostgreSQL instance - pg_basebackup.exe, located in the bin folder of the PostgreSQL directory. The script does not make incremental backups (i.e. WAL-files or Transaction Logs), since PostgreSQL itself generates them without external influence. However, the script uploads WAL-files to the cloud.
+
+Below is a short instruction on configuring PostgreSQL to create WAL-files. Using PostgreSQL 14.4 as an example:
+
+The file "C:\Program Files\PostgreSQL\14.4-1.1C\data\postgresql.conf" should have:
+
+# - Archiving -
+
+archive_mode = on		
+				# (change requires restart)
+archive_command = 'copy "%p" "F:\\pg_log_archive\\%f"'		
+archive_timeout = 1800		
+
+INSTEAD:
+
+# - Archiving -
+
+#archive_mode = off		
+				# (change requires restart)
+#archive_command = ''		
+#archive_timeout = 0
+
+archive_command - tell the server what to do when a new WAL-file is ready/created
+archive_timeout - Optional. The time after which the server will gratefully create a new WAL-file, regardless of whether changes have accumulated in the database or not. Be careful, each file took 16MB for me, even if it does not contain changes
+
+P.S. For the script to work on Linux, you need to slightly tweak the principle of compiling paths to files
+
+
+
+
+
+
+
+В пакете 3 скрипта:
+PostgreSQLBackuper.py - Сам бэкапер и синхронизатор с облаком Yandex
+LauncherPostgreSQLBackupFor1cKiP.py - лончер для создания бэкапов через 1с КИП. Центр администрирования
+LauncherPostgreSQLUploadToCloudFor1cKiP.py - лончер для выгрузки новых бэкапов в облако через 1с КИП. Центр администрирования
+
+Дополнительно для 1с КИП. Центр администрирования
+python-3.10.8.amd64.for1cKIP.zip - интерпретатор Python 3.10 с нужными библиотеками для запуска скрипта
+LauncherFor1cKiP.yml - конфигурационный файл для т.н. "Словаря" в КИП. Работает на Windows, должен подойти и для Linux
+
+
+Ядром является штатная утилита создания полных архивов всего инстанса PostgreSQL - pg_basebackup.exe, располагающаяся в папке bin каталога PostgreSQL. Скрипт не делает инкрементальные бэкапы (т.е. WAL-files или Журналы транзакций), поскольку PostgreSQL сам их формирует без внешнего воздействия. Однако скрипт выгружает WAL-files в облако. 
+
+Ниже короткая инструкция по настройке PostgreSQL, чтобы он создавал WAL-files. На примере PostgreSQL 14.4:
+
+В файле "C:\Program Files\PostgreSQL\14.4-1.1C\data\postgresql.conf" должно быть:
+
+# - Archiving -
+
+archive_mode = on		
+				# (change requires restart)
+archive_command = 'copy "%p" "F:\\pg_log_archive\\%f"'		
+archive_timeout = 1800		
+
+ВМЕСТО
+
+# - Archiving -
+
+#archive_mode = off		
+				# (change requires restart)
+#archive_command = ''		
+#archive_timeout = 0		
+
+
+archive_command - указание серверу что делать, когда готов/создался новый WAL-file		
+archive_timeout - Необязательно. Время, по истечении которого, сервер признательно создаст новый WAL-file, вне зависимости от того, накопились в базе изменения или нет. Будьте аккуратны, у меня каждый файл занимал 16мб, даже если он не содержит изменения
+
+P.S. Для работы скрипта на Linux нужно чуток подправить принцип составления путей до файлов
+
