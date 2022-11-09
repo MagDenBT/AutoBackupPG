@@ -60,18 +60,18 @@ class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
         PostgreSQLBackuper.setParam(self.config.scenario_context,True)
 
         # For debug
-        path = f'./logPath\\1111.json'
-        if not os.path.exists("./logPath"):
-            os.makedirs("./logPath")
-        with open(path, 'w') as fp:
-            for key, value in PostgreSQLBackuper.args.items():
-                 fp.write(f'{key} ---- {value}\n')
-        fp.close()
-        path = f'./logPath\\222.json'
-        with open(path, 'w') as fp:
-            for key, value in self.config.scenario_context.items():
-                fp.write(f'{key} ---- {value}\n')
-        fp.close()
+        # path = f'./logPath\\1111.json'
+        # if not os.path.exists("./logPath"):
+        #     os.makedirs("./logPath")
+        # with open(path, 'w') as fp:
+        #     for key, value in PostgreSQLBackuper.args.items():
+        #          fp.write(f'{key} ---- {value}\n')
+        # fp.close()
+        # path = f'./logPath\\222.json'
+        # with open(path, 'w') as fp:
+        #     for key, value in self.config.scenario_context.items():
+        #         fp.write(f'{key} ---- {value}\n')
+        # fp.close()
 
         writeLog = self.config['writetologfile']
         message = ''
