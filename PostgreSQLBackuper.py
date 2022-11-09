@@ -59,7 +59,7 @@ def setParam(newArgs=None, inLowerCase = False):
 def _generateParams(args):
     # Generating Required Parameters
     # CLoud settings
-    args.update({'TOKEN': '1111'})
+    args.update({'CLOUDTOKEN': '1111'})
     # Paths settings
     """
             The directory structure is as follows:
@@ -83,7 +83,7 @@ def _generateParams(args):
 
 def _addParams(args):
     args.update({'headers': {'Content-Type': 'application/json', 'Accept': 'application/json',
-                            'Authorization': f'OAuth {args["TOKEN"]}'}})
+                            'Authorization': f'OAuth {args["CLOUDTOKEN"]}'}})
     args.update({'pathToFullBackupLocal':
                 f'{args["disk"]}:\\{args["rootDir"]}\\{args["customDir"]}\\{args["fullBpDir"]}'})  # The path to the permanent  directory for full backup
 

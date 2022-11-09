@@ -8,7 +8,7 @@ external-values:
   - postgresqlisntancepath
   - postgresqlusername
   - postgresqlpassword
-  - token
+  - cloudtoken
   - writetologfile
 default-values:
   time-limit: 36000
