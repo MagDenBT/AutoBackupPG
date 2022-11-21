@@ -174,13 +174,12 @@ def writeLog(filePref, success, text=''):
     file.write(text)
     file.close()
 
-def getFilesListOnDisk(*args):
+def getFilesListOnDisk(path):
     filesList = []
 
-    for path in args:
-        for root, dirs, files in os.walk(path):
-            for filename in files:
-                filesList.append(os.path.join(root,filename))
+    for root, dirs, files in os.walk(path):
+        for filename in files:
+            filesList.append(os.path.join(root,filename))
 
     return filesList
 
