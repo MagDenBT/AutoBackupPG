@@ -1,9 +1,10 @@
+import PostgreSQLBackuper
 import hashlib
 import json
 import os
 import requests
 import traceback
-from datetime import datetime
+import datetime
 from dateutil import parser
 import tzlocal
 
@@ -11,65 +12,171 @@ args = {}
 
 
 def main():
-    storage_time = 1000
+    # Test.Delete before release
+    global args
+    PostgreSQLBackuper.setParam()
+    file = open('./token')
+    PostgreSQLBackuper.args.update({'CLOUDTOKEN': file.read()})
+    PostgreSQLBackuper.args.update({'disk': 'C'})
+    PostgreSQLBackuper.args.update({'rootDir': 'Postgresql backups'})
+    PostgreSQLBackuper.args.update({'customDir': 'Sales dep'})
+    PostgreSQLBackuper.args.update({'fullBpDir': 'Full'})
+    PostgreSQLBackuper.args.update({'localPathToWALFiles': 'C:\\Postgresql backups\\pg_log_archive'})
+    PostgreSQLBackuper.__add_params(PostgreSQLBackuper.args)
 
-    now = datetime.now(tzlocal.get_localzone())
+    args = PostgreSQLBackuper.args
+    now = parser.parse("26.11.2022 00:00:00 +3")
+    # Test.Delete before release
+
+    storage_time = 1565100
+
+    # now = datetime.datetime.now(tzlocal.get_localzone())
     expire_date = now - datetime.timedelta(seconds=storage_time)
+
     cleanLocal(expire_date)
-    failedToDelete = cleanCloud()
+    failedToDelete = clean_cloud()
+    for v in failedToDelete:
+        print(v)
+    print(failedToDelete)
 
 
-def cleanCloud():
-    extraBck = getExtraBckOnCloud()
+
+def __delete_obj_on_cloud(path, permanently=True):
+    result = False
+    try:
+        res = requests.delete(f'{args["URL"]}?path={path}&permanently={permanently}', headers=args["headers"])
+        if not res.status_code == 202 or not res.status_code == 204:
+            result = True
+    except Exception as e:
+        raise Exception(f'{traceback.format_exc()}\n{e}')
+    return result
+
+
+def __delete_cloud_empty_bck_dirs(keepRoots=True):
+    rootDirs = set(__get_root_dirs())
+    emptyDirs = []
+    for dir in rootDirs:
+        path = '/' + dir
+        __empty_cloud_dirs(path, emptyDirs)
+
+    if keepRoots:
+        for dir in rootDirs:
+            path = '/' + dir
+            try:
+                emptyDirs.remove(path)
+            except ValueError:
+                continue
     failedToDelete = []
-    permanently = False
-    for bck in extraBck:
-        try:
-            res = requests.get(f'{args["URL"]}?path={bck}&permanently={permanently}', headers=args["headers"])
-            if not res.status_code == 202 or res.status_code == 204:
-                failedToDelete.append(bck)
-        except Exception as e:
-            raise Exception(f'{traceback.format_exc()}\n{e}')
+    emptyDirs = __optimize_remove_list(emptyDirs)
+    for path in emptyDirs:
+        if not __delete_obj_on_cloud(path, False):
+            failedToDelete.append(path)
     return failedToDelete
 
 
+def __optimize_remove_list(emptyDirs):
+    emptyDirs = set(emptyDirs)
+    tempColl = emptyDirs.copy()
+    for i, sought in enumerate(emptyDirs):
+        for z, target in enumerate(emptyDirs):
+            if z == i:
+                continue
+            if target.startswith(sought):
+                try:
+                    tempColl.remove(target)
+                except KeyError:
+                    continue
+    return tempColl
 
 
-def getExtraBckOnCloud():
-    localPaths = [args["pathToFullBackupCloud"], args["pathToIncrBackupCloud"]]
+def __empty_cloud_dirs(path, emptyDirs: []):
+    try:
+        limit = 1000000000
+        res = requests.get(f'{args["URL"]}?path={path}&limit={limit}',
+                           headers=args["headers"])
+        if not res.status_code == 200:
+            raise Exception(f'Удаление пустых папок в облаке. Не удалось получить список папок в облаке. {res.text}')
+        data = res.json()
+    except Exception as e:
+        raise Exception(f'{traceback.format_exc()}\n{e}')
+
+    emptyDirs.append(path)
+
+    for item in data['_embedded']['items']:
+        if item['type'] == 'file':
+            firmPath = ''
+            # let's remove each parent directory from the list, going up the level step by step
+            currPath = item['path'].replace('disk:', '').split('/')
+            for i, dir in enumerate(currPath):
+                if i == 0:
+                    continue
+                firmPath += f'/{dir}'
+                try:
+                    emptyDirs.remove(firmPath)
+                except ValueError:
+                    continue
+        if item['type'] == 'dir':
+            subPath = item['path'].replace('disk:', '')
+            __empty_cloud_dirs(subPath, emptyDirs)
+
+
+def clean_cloud():
+    extraBck = __get_extra_bck_on_cloud()
+    failedToDelete = []
+    permanently = False
+    for bck in extraBck:
+        if not __delete_obj_on_cloud(bck, permanently):
+            failedToDelete.append(bck)
+
+    info = __delete_cloud_empty_bck_dirs()
+    failedToDelete.extend(info)
+    return failedToDelete
+
+
+def __get_extra_bck_on_cloud():
+    localPaths = [args["pathToFullBackupLocal"], args["localPathToWALFiles"]]
     existingFilesMD5 = []
     extraBck = []
 
     for path in localPaths:
-        files = getObjectsListOnDisk(path, onlyFiles=True)
-        hashes = getMD5(files)
+        files = __get_objects_list_on_disk(path, onlyFiles=True)
+        hashes = __get_md5(files)
         existingFilesMD5.extend(hashes)
 
     try:
-        res = requests.get(f'{args["URL"]}/files?preview_crop=true&sort=path', headers=args["headers"])
+        limit = 1000000000
+        res = requests.get(f'{args["URL"]}/files?preview_crop=true&sort=path&limit={limit}', headers=args["headers"])
         if not res.status_code == 200:
             raise Exception(f'Очитка облака. Не удалось получить список файлов в облаке. {res.text}')
         data = res.json()
     except Exception as e:
         raise Exception(f'{traceback.format_exc()}\n{e}')
 
-    for item in data.items:
+    rootDirs = __get_root_dirs()
+
+    for item in data['items']:
         isBckDir = False
-        for localPath in localPaths:
-            if localPath in item.path:
+        for dir in rootDirs:
+            if dir == item['path'].split('/')[1]:
                 isBckDir = True
         if isBckDir:
             try:
-                existingFilesMD5.index(item.md5)
+                existingFilesMD5.index(item['md5'])
                 continue
             except ValueError:
-                extraBck.append(item.path)
+                extraBck.append(item['path'].replace('disk:', ''))
 
     return extraBck
 
 
+def __get_root_dirs():
+    rootDirs = [args["pathToFullBackupCloud"], args["pathToIncrBackupCloud"]]
+    for i, val in enumerate(rootDirs):
+        rootDirs[i] = val.split("/")[1]
+    return rootDirs
 
-def getMD5(files):
+
+def __get_md5(files):
     hashes = []
     for path in files:
         hash_md5 = hashlib.md5()
@@ -79,34 +186,35 @@ def getMD5(files):
         hashes.append(hash_md5.hexdigest())
     return hashes
 
+
 def cleanLocal(expire_date):
-    full_bck = fullBckToRemove(expire_date)
+    full_bck = __full_bck_to_remove(expire_date)
     for obj in full_bck:
         os.remove(obj)
 
     mask = '__backup_manifest'
-    full_bck = getObjectsListOnDisk(args.get('pathToFullBackupLocal'), mask)
-    oldest_date = datetime.now(tzlocal.get_localzone())
+    full_bck = __get_objects_list_on_disk(args.get('pathToFullBackupLocal'), mask)
 
+    oldest_date = datetime.datetime.now(tzlocal.get_localzone())
     oldest_label = None
     for file in full_bck:
         fileName = os.path.basename(file)
         if mask in fileName:
-            date_str = readCreateDate(file)
+            date_str = __read_create_date(file)
             bck_date = parser.parse(date_str)
             if oldest_date >= bck_date:
                 oldest_date = bck_date
                 oldest_label = fileName.replace(mask, '')
 
     if oldest_label is not None:
-        inc_bck = incBckToRemove(oldest_label)
+        inc_bck = __inc_bck_to_remove(args["localPathToWALFiles"], oldest_label)
         for obj in inc_bck:
             os.remove(obj)
 
-    deleteLocalEmptyBckDirs()
+    __delete_local_empty_bck_dirs()
 
 
-def numberIncBck(path, label):
+def __number_inc_bck(path, label):
     result = None
 
     for root, dirs, files in os.walk(path):
@@ -134,8 +242,8 @@ def numberIncBck(path, label):
     return result
 
 
-def incBckToRemove(path, oldest_label, delete_unsuitable=False):
-    oldest_number = numberIncBck(path, oldest_label)
+def __inc_bck_to_remove(path, oldest_label, delete_unsuitable=False):
+    oldest_number = __number_inc_bck(path, oldest_label)
     to_remove = []
     if oldest_number is None:
         return to_remove
@@ -157,21 +265,22 @@ def incBckToRemove(path, oldest_label, delete_unsuitable=False):
     return to_remove
 
 
-def fullBckToRemove(exprireDate: datetime):
-    fullBck = getObjectsListOnDisk(args.get('pathToFullBackupLocal'))
+def __full_bck_to_remove(exprireDate: datetime):
+    fullBck = __get_objects_list_on_disk(args.get('pathToFullBackupLocal'))
     result = []
     mask = '__backup_manifest'
     for file in fullBck:
-        if mask in os.path.basename(file):
-            dateStr = readCreateDate(file)
+        fileName = os.path.basename(file)
+        if mask in fileName:
+            dateStr = __read_create_date(file)
             bckDate = parser.parse(dateStr)
-            if exprireDate <= bckDate:
-                portion = getObjectsListOnDisk(os.path.dirname(file), mask)
+            if bckDate <= exprireDate:
+                portion = __get_objects_list_on_disk(os.path.dirname(file), fileName.split(mask)[0])
                 result.extend(portion)
     return result
 
 
-def readCreateDate(backupManifest: str):
+def __read_create_date(backupManifest: str):
     with open(backupManifest) as json_file:
         data = json.load(json_file)
         for p in data['Files']:
@@ -179,7 +288,7 @@ def readCreateDate(backupManifest: str):
                 return p['Last-Modified']
 
 
-def getObjectsListOnDisk(path, mask=None, onlyFiles=False):
+def __get_objects_list_on_disk(path, mask=None, onlyFiles=False):
     objects_list = []
     for root, dirs, files in os.walk(path):
         for filename in files:
@@ -198,15 +307,16 @@ def getObjectsListOnDisk(path, mask=None, onlyFiles=False):
     return objects_list
 
 
-def deleteLocalEmptyBckDirs():
+def __delete_local_empty_bck_dirs():
     arr = [args.get('pathToFullBackupLocal'), args.get('localPathToWALFiles')]
     for path in arr:
         if os.path.exists(path):
             for root, dirs, files in os.walk(path):
                 for dir in dirs:
-                    content = getObjectsListOnDisk(os.path.join(root, dir), onlyFiles=True)
+                    dirPath = os.path.join(root, dir)
+                    content = __get_objects_list_on_disk(dirPath, onlyFiles=True)
                     if len(content) == 0:
-                        os.remove(dir)
+                        os.rmdir(dirPath)
 
 
 if __name__ == "__main__":
