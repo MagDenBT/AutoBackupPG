@@ -30,7 +30,7 @@ def main():
 
     storage_time = 1565100
 
-    # now = datetime.datetime.now(tzlocal.get_localzone())
+    now = datetime.datetime.now(tzlocal.get_localzone())
     expire_date = now - datetime.timedelta(seconds=storage_time)
 
     cleanLocal(expire_date)
