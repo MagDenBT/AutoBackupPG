@@ -28,7 +28,7 @@ import requests as requests
 # CLoud settings
 # from lib.common.logger import global_logger
 
-import PostgreSQLBackuper
+from PostgreSQLBackuper import Manager
 
 
 class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
@@ -56,8 +56,7 @@ class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
     def _real(self):
 
         global_logger.info(message="897979797979Starting backup")
-
-        PostgreSQLBackuper.setParam(self.config.scenario_context,True)
+        manager = Manager(self.config.scenario_context, ArgsInLowerCase=True)
 
         # For debug
         # path = f'./logPath\\1111.json'
@@ -73,26 +72,16 @@ class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
         #         fp.write(f'{key} ---- {value}\n')
         # fp.close()
 
-        writeLog = self.config['writetologfile']
-        message = ''
-        if not PostgreSQLBackuper.checkParams(message):
-            global_logger.error(message=f"Скрипт остановлен после проверки параметров.Причина - {message}")
-            if writeLog:
-                PostgreSQLBackuper.writeLog('checkParams-', False, message)
-            raise SACError("Скрипт остановлен после проверки параметров",message)
+        writetologfile = self.config['writetologfile']
 
         try:
             global_logger.info(message="Starting upload to Cloud")
-            PostgreSQLBackuper.uploadOnYandexCloud()
+            manager.upload_on_yandex_cloud(writetologfile, True)
             global_logger.info(message="Бэкапы PostgreSQL успешно выгружены в облако")
-            if writeLog:
-                PostgreSQLBackuper.writeLog('upload-', True, '')
         except Exception as e:
             error = str(e)
             global_logger.error(message=f"Выгрузка бэкапов PostgreSQL в облако не удалась. Причина - {error}")
-            if writeLog:
-                PostgreSQLBackuper.writeLog('upload-', False, error)
-            raise SACError("Выгрузка бэкапов PostgreSQL в облако не удалась",error)
+            raise SACError("Выгрузка бэкапов PostgreSQL в облако не удалась", error)
 
 
 # Позволяет запускать сценарий, если данный файл был запущен напрямую.

@@ -28,7 +28,7 @@ import requests as requests
 # CLoud settings
 # from lib.common.logger import global_logger
 
-import PostgreSQLBackuper
+from PostgreSQLBackuper import Manager
 
 
 class LauncherPostgreSQLBackupFor1cKiP(BaseScenario):
@@ -56,8 +56,8 @@ class LauncherPostgreSQLBackupFor1cKiP(BaseScenario):
     def _real(self):
 
         global_logger.info(message="897979797979Starting backup")
+        manager = Manager(self.config.scenario_context, ArgsInLowerCase=True)
 
-        PostgreSQLBackuper.setParam(self.config.scenario_context,True)
 
         # For debug
         # path = f'./logPath\\1111.json'
@@ -73,25 +73,15 @@ class LauncherPostgreSQLBackupFor1cKiP(BaseScenario):
         #         fp.write(f'{key} ---- {value}\n')
         # fp.close()
 
-        writeLog = self.config['writetologfile']
-        message = ''
-        if not PostgreSQLBackuper.checkParams(message):
-            global_logger.error(message=f"Скрипт остановлен после проверки параметров.Причина - {message}")
-            if writeLog:
-                PostgreSQLBackuper.writeLog('checkParams-', False, message)
-            raise SACError("Скрипт остановлен после проверки параметров",message)
+        writetologfile = self.config['writetologfile']
 
         try:
             global_logger.info(message="Starting backup")
-            PostgreSQLBackuper.createFullBackup()
+            manager.create_full_backup(writetologfile,True)
             global_logger.info(message="Бэкап PostgreSQL сделан")
-            if writeLog:
-                PostgreSQLBackuper.writeLog('backup-', True, '')
         except Exception as e:
             error = str(e)
             global_logger.error(message=f"Не удалось создать полный бэкап PostgreSQL.Причина - {error}")
-            if writeLog:
-                PostgreSQLBackuper.writeLog('backup-', False, error)
             raise SACError("Не удалось создать полный бэкап PostgreSQL",error)
 
 

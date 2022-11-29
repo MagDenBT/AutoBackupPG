@@ -51,9 +51,9 @@ class Manager:
             print(v)
         print(failedToDelete)
 
-    def clean_backups(self):
+    def clean_backups(self, writetologfile=True, raiseException=False):
         storage_time = self.get_param("storageTime")
-        if storage_time > 0:
+        if storage_time is not None and storage_time > 0:
             now = datetime.datetime.now(tzlocal.get_localzone())
             expire_date = now - datetime.timedelta(seconds=storage_time)
             self.cleaner._cleanLocal(expire_date)
@@ -63,19 +63,27 @@ class Manager:
         #     print(v)
         # print(failedToDelete)
 
-    def create_full_backup(self):
+    def create_full_backup(self, writetologfile=True, raiseException=False):
         try:
             self.backaper._create_full_backup()
-            self.writeLog('backup-', True, '')
+            if writetologfile:
+                self.writeLog('backup-', True, '')
         except Exception as e:
-            self.writeLog('backup-', False, str(e))
+            if writetologfile:
+                self.writeLog('backup-', False, str(e))
+            if raiseException:
+                raise e
 
-    def upload_on_yandex_cloud(self):
+    def upload_on_yandex_cloud(self, writetologfile=True, raiseException=False):
         try:
             self.backaper._create_full_backup()
-            self.writeLog('backup-', True, '')
+            if writetologfile:
+                self.writeLog('backup-', True, '')
         except Exception as e:
-            self.writeLog('backup-', False, str(e))
+            if writetologfile:
+                self.writeLog('backup-', False, str(e))
+            if raiseException:
+                raise e
 
     def main(self):
         self.create_full_backup()
