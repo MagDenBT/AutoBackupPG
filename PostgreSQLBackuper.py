@@ -15,19 +15,41 @@ import json
 from dateutil import parser
 import tzlocal
 
-from PostgreSQLBackuper import Backuper, Cleaner
-
 
 class Manager:
-    backaper = Backuper()
-    cleaner = Cleaner()
+    backaper = None
+    cleaner = None
     args = {}
 
     def __init__(self, newArgs=None, ArgsInLowerCase=False):
+        self.backaper = self.Backuper(self)
+        self.cleaner = self.Cleaner(self)
         self.setParam(newArgs, ArgsInLowerCase)
         message = ''
         if not self._checkParams(message):
             self.writeLog('backup-', False, message)
+
+    def _test(self):
+        file = open('./token')
+        self.args.update({'CLOUDTOKEN': file.read()})
+
+        self.args.update({'disk': 'C'})
+        self.args.update({'rootDir': 'Postgresql backups'})
+        self.args.update({'customDir': 'Отдел продаж'})
+        self.args.update({'fullBpDir': 'Full'})
+        self.args.update({'localPathToWALFiles': 'C:\\Postgresql backups\\pg_log_archive'})
+        self.__add_internal_params()
+
+        now = parser.parse("26.11.2022 00:00:00 +3")
+        # Test.Delete before release
+
+        storage_time = 1565100
+        expire_date = now - datetime.timedelta(seconds=storage_time)
+        self.cleaner._cleanLocal(expire_date)
+        failedToDelete = self.cleaner._clean_cloud()
+        for v in failedToDelete:
+            print(v)
+        print(failedToDelete)
 
     def clean_backups(self):
         storage_time = self.get_param("storageTime")
@@ -112,7 +134,7 @@ class Manager:
         self.args.update({'headers': {'Content-Type': 'application/json', 'Accept': 'application/json',
                                       'Authorization': f'OAuth {self.get_param("CLOUDTOKEN")}'}})
         self.args.update({
-                             'pathToFullBackupLocal': f'{self.get_param("disk")}:\\{self.get_param("rootDir")}\\{self.get_param("customDir")}\\{self.get_param("fullBpDir")}'})  # The path to the permanent  directory for full backup
+            'pathToFullBackupLocal': f'{self.get_param("disk")}:\\{self.get_param("rootDir")}\\{self.get_param("customDir")}\\{self.get_param("fullBpDir")}'})  # The path to the permanent  directory for full backup
 
         # args.update({'incrBpDir': incrBpDir})
 
@@ -175,460 +197,467 @@ class Manager:
     def get_param(self, key: str):
         return self.args.get(key)
 
+    class Backuper:
+        manager = None
 
-class Backuper:
-    def __init__(self):
-        pass
+        def __init__(self, manager):
+            self.manager = manager
 
-    def __file_operations_full_backup(self):
-        files = self.__get_files_list_on_disk(Manager.get_param("tempPath"))
-        if not os.path.exists(f'{Manager.get_param("pathToFullBackupLocal")}\\{label}'):
-            os.makedirs(f'{Manager.get_param("pathToFullBackupLocal")}\\{label}')
+        def __file_operations_full_backup(self):
+            files = self.__get_files_list_on_disk(self.manager.get_param("tempPath"))
+            if not os.path.exists(f'{self.manager.get_param("pathToFullBackupLocal")}\\{label}'):
+                os.makedirs(f'{self.manager.get_param("pathToFullBackupLocal")}\\{label}')
 
-        # move & rename
-        for file in files:
-            shutil.move(file,
-                        f'{Manager.get_param("pathToFullBackupLocal")}\\{label}\\{label}__{os.path.basename(file)}')
+            # move & rename
+            for file in files:
+                shutil.move(file,
+                            f'{self.manager.get_param("pathToFullBackupLocal")}\\{label}\\{label}__{os.path.basename(file)}')
 
-    def __clear_temp_dir_full_backup(self):
-        # clear the directory of any files
-        if os.path.exists(Manager.get_param("tempPath")):
-            for path in os.listdir(Manager.get_param("tempPath")):
-                if os.path.exists(f'{Manager.get_param("tempPath")}\\{path}'):
-                    os.remove(f'{Manager.get_param("tempPath")}\\{path}')
+        def __clear_temp_dir_full_backup(self):
+            # clear the directory of any files
+            if os.path.exists(self.manager.get_param("tempPath")):
+                for path in os.listdir(self.manager.get_param("tempPath")):
+                    if os.path.exists(f'{self.manager.get_param("tempPath")}\\{path}'):
+                        os.remove(f'{self.manager.get_param("tempPath")}\\{path}')
 
-    def _create_full_backup(self):
-        global label
-        label = Manager.__generate_label()
+        def _create_full_backup(self):
+            global label
+            label = Manager.__generate_label()
 
-        my_env = os.environ.copy()
-        my_env["PGPASSWORD"] = Manager.get_param("postgresqlPassword")
+            my_env = os.environ.copy()
+            my_env["PGPASSWORD"] = self.manager.get_param("postgresqlPassword")
 
-        self.__clear_temp_dir_full_backup()
-
-        process = subprocess.run(
-            [Manager.get_param("backuper"),
-             '-D', Manager.get_param("tempPath"),
-             '-X', 'fetch',
-             '-F', 'tar',
-             '--label', label,
-             '--gzip',
-             '--no-password',
-             '--username', Manager.get_param("postgresqlUsername"),
-             ],
-            stderr=subprocess.PIPE,
-            env=my_env,
-        )
-        textError = process.stderr.decode()
-        if textError == "":
-            self.__file_operations_full_backup()
             self.__clear_temp_dir_full_backup()
-        else:
-            raise Exception(textError)
 
-    def __get_files_list_on_disk(self, path):
-        filesList = []
+            process = subprocess.run(
+                [self.manager.get_param("backuper"),
+                 '-D', self.manager.get_param("tempPath"),
+                 '-X', 'fetch',
+                 '-F', 'tar',
+                 '--label', label,
+                 '--gzip',
+                 '--no-password',
+                 '--username', self.manager.get_param("postgresqlUsername"),
+                 ],
+                stderr=subprocess.PIPE,
+                env=my_env,
+            )
+            textError = process.stderr.decode()
+            if textError == "":
+                self.__file_operations_full_backup()
+                self.__clear_temp_dir_full_backup()
+            else:
+                raise Exception(textError)
 
-        for root, dirs, files in os.walk(path):
-            for filename in files:
-                filesList.append(os.path.join(root, filename))
+        def __get_files_list_on_disk(self, path):
+            filesList = []
 
-        return filesList
+            for root, dirs, files in os.walk(path):
+                for filename in files:
+                    filesList.append(os.path.join(root, filename))
 
-    def __get_files_to_upload(self, backups, pathCloud, withLastDir=True):
-        toUpload = []
-        for backup in backups:
-            dir = os.path.dirname(backup)
-            dirName = os.path.basename(dir)
-            fileName = os.path.basename(backup)
-            if withLastDir:
-                fileName = f'{dirName}/{fileName}'
+            return filesList
 
-            try:
-                res = requests.get(f'{Manager.get_param("URL")}?path={pathCloud}/{fileName}',
-                                   headers=Manager.get_param("headers"))
-                if not res.status_code == 200:
-                    if res.status_code == 404:
-                        toUpload.append(backup)
-                    else:
-                        raise Exception(
-                            f'При синхронизации с облаком не удалось определить файлы для выгрузки. {res.text}')
-            except Exception as e:
-                raise Exception(f'{traceback.format_exc()}\n{e}')
-
-        return toUpload
-
-    def __get_available_memory(self):
-        try:
-            res = requests.get(f'https://cloud-api.yandex.net/v1/disk?fields=used_space%2Ctotal_space',
-                               headers=Manager.get_param("headers"))
-            if not res.status_code == 200:
-                raise Exception(f'Не удалось получить инфо о свободном месте в облаке. {res.text}')
-            data = res.json()
-            return data['total_space'] - data['used_space']
-        except Exception as e:
-            raise Exception(f'{traceback.format_exc()}\n{e}')
-
-    def __prepare_dir_on_cloud(self, backups, pathCloud, withLastDir=True):
-        requerdPath = pathlib.Path(pathCloud).parts
-        i = 1
-        step = ''
-        while i < len(requerdPath):
-            step += '/' + requerdPath[i]
-            self.__create_dir_on_cloud(step)
-            i = i + 1
-
-        if withLastDir:
-            paths = []
+        def __get_files_to_upload(self, backups, pathCloud, withLastDir=True):
+            toUpload = []
             for backup in backups:
                 dir = os.path.dirname(backup)
                 dirName = os.path.basename(dir)
-                paths.append(dirName)
+                fileName = os.path.basename(backup)
+                if withLastDir:
+                    fileName = f'{dirName}/{fileName}'
 
-            paths = set(paths)
-            for dirName in paths:
-                self.__create_dir_on_cloud(f'{pathCloud}/{dirName}')
+                try:
+                    res = requests.get(f'{self.manager.get_param("URL")}?path={pathCloud}/{fileName}',
+                                       headers=self.manager.get_param("headers"))
+                    if not res.status_code == 200:
+                        if res.status_code == 404:
+                            toUpload.append(backup)
+                        else:
+                            raise Exception(
+                                f'При синхронизации с облаком не удалось определить файлы для выгрузки. {res.text}')
+                except Exception as e:
+                    raise Exception(f'{traceback.format_exc()}\n{e}')
 
-    def __create_dir_on_cloud(self, path):
-        try:
-            res = requests.put(f'{Manager.get_param("URL")}?path={path}', headers=Manager.get_param("headers"))
+            return toUpload
 
-            if not res.status_code == 201 and not res.status_code == 409:
-                raise Exception(f'Не удалось создать каталог {path} в облаке. {res.text}')
-
-        except Exception as e:
-            raise Exception(f'{traceback.format_exc()}\n{e}')
-
-    def _upload_on_yandex_cloud(self):
-        fullBackups = self.__get_files_list_on_disk(Manager.get_param("pathToFullBackupLocal"))
-        incrBackups = self.__get_files_list_on_disk(Manager.get_param("localPathToWALFiles"))
-
-        pathToFullBackupCloud = Manager.get_param("pathToFullBackupCloud")
-        pathToIncrBackupCloud = Manager.get_param("pathToIncrBackupCloud")
-
-        fullBackupsToUpload = self.__get_files_to_upload(fullBackups, pathToFullBackupCloud)
-        incrBackupsToUpload = self.__get_files_to_upload(incrBackups, pathToIncrBackupCloud, False)
-
-        uploadSize = 0
-        for filePath in fullBackupsToUpload:
-            uploadSize += os.stat(filePath).st_size
-
-        for filePath in incrBackupsToUpload:
-            uploadSize += os.stat(filePath).st_size
-
-        if uploadSize == 0:
-            return 'Нет новых файлов для выгрузки'
-
-        avMemory = self.__get_available_memory()
-        toClear = uploadSize - avMemory
-
-        if toClear > 0:
-            raise Exception(f'Недостаточно места в облаке. Требуется еще {toClear / 1024 / 1024} мб')
-
-        self.__prepare_dir_on_cloud(fullBackupsToUpload, pathToFullBackupCloud)
-        self.__prepare_dir_on_cloud(incrBackupsToUpload, pathToIncrBackupCloud, False)
-
-        for backup in fullBackupsToUpload:
-            dir = os.path.dirname(backup)
-            dirName = os.path.basename(dir)
-            filename = os.path.basename(backup)
-            self.__upload_file(backup, f'{pathToFullBackupCloud}/{dirName}/{filename}')
-
-        for backup in incrBackupsToUpload:
-            filename = os.path.basename(backup)
-            self.__upload_file(backup, f'{pathToIncrBackupCloud}/{filename}')
-
-    def __create_folder(self, path):
-        """Создание папки. \n path: Путь к создаваемой папке."""
-        requests.put(f'{Manager.get_param("URL")}?path={path}', headers=Manager.get_param("headers"))
-
-    def __upload_file(self, loadfile, savefile, replace=False):
-        """Загрузка файла.
-        savefile: Путь к файлу на Диске
-        loadfile: Путь к загружаемому файлу
-        replace: true or false Замена файла на Диске"""
-        res = requests.get(f'{Manager.get_param("URL")}/upload?path={savefile}&overwrite={replace}',
-                           headers=Manager.get_param("headers")).json()
-        with open(loadfile, 'rb') as f:
+        def __get_available_memory(self):
             try:
-                res = requests.put(res['href'], files={'file': f})
-                if not res.status_code == 201:
-                    raise Exception(f'Не удалось выгрузить файл {loadfile} в облако. {res.text}')
+                res = requests.get(f'https://cloud-api.yandex.net/v1/disk?fields=used_space%2Ctotal_space',
+                                   headers=self.manager.get_param("headers"))
+                if not res.status_code == 200:
+                    raise Exception(f'Не удалось получить инфо о свободном месте в облаке. {res.text}')
+                data = res.json()
+                return data['total_space'] - data['used_space']
             except Exception as e:
                 raise Exception(f'{traceback.format_exc()}\n{e}')
 
+        def __prepare_dir_on_cloud(self, backups, pathCloud, withLastDir=True):
+            requerdPath = pathlib.Path(pathCloud).parts
+            i = 1
+            step = ''
+            while i < len(requerdPath):
+                step += '/' + requerdPath[i]
+                self.__create_dir_on_cloud(step)
+                i = i + 1
 
-class Cleaner:
+            if withLastDir:
+                paths = []
+                for backup in backups:
+                    dir = os.path.dirname(backup)
+                    dirName = os.path.basename(dir)
+                    paths.append(dirName)
 
-    def __init__(self):
-        pass
+                paths = set(paths)
+                for dirName in paths:
+                    self.__create_dir_on_cloud(f'{pathCloud}/{dirName}')
 
-    def __delete_obj_on_cloud(self, path, permanently=True):
-        result = False
-        try:
-            res = requests.delete(f'{Manager.get_param("URL")}?path={path}&permanently={permanently}',
-                                  headers=Manager.get_param("headers"))
-            if not res.status_code == 202 or not res.status_code == 204:
-                result = True
-        except Exception as e:
-            raise Exception(f'{traceback.format_exc()}\n{e}')
-        return result
+        def __create_dir_on_cloud(self, path):
+            try:
+                res = requests.put(f'{self.manager.get_param("URL")}?path={path}',
+                                   headers=self.manager.get_param("headers"))
 
-    def __delete_cloud_empty_bck_dirs(self, keepRoots=True):
-        rootDirs = set(self.__get_root_dirs())
-        emptyDirs = []
-        for dir in rootDirs:
-            path = '/' + dir
-            self.__empty_cloud_dirs(path, emptyDirs)
+                if not res.status_code == 201 and not res.status_code == 409:
+                    raise Exception(f'Не удалось создать каталог {path} в облаке. {res.text}')
 
-        if keepRoots:
-            for dir in rootDirs:
-                path = '/' + dir
+            except Exception as e:
+                raise Exception(f'{traceback.format_exc()}\n{e}')
+
+        def _upload_on_yandex_cloud(self):
+            fullBackups = self.__get_files_list_on_disk(self.manager.get_param("pathToFullBackupLocal"))
+            incrBackups = self.__get_files_list_on_disk(self.manager.get_param("localPathToWALFiles"))
+
+            pathToFullBackupCloud = self.manager.get_param("pathToFullBackupCloud")
+            pathToIncrBackupCloud = self.manager.get_param("pathToIncrBackupCloud")
+
+            fullBackupsToUpload = self.__get_files_to_upload(fullBackups, pathToFullBackupCloud)
+            incrBackupsToUpload = self.__get_files_to_upload(incrBackups, pathToIncrBackupCloud, False)
+
+            uploadSize = 0
+            for filePath in fullBackupsToUpload:
+                uploadSize += os.stat(filePath).st_size
+
+            for filePath in incrBackupsToUpload:
+                uploadSize += os.stat(filePath).st_size
+
+            if uploadSize == 0:
+                return 'Нет новых файлов для выгрузки'
+
+            avMemory = self.__get_available_memory()
+            toClear = uploadSize - avMemory
+
+            if toClear > 0:
+                raise Exception(f'Недостаточно места в облаке. Требуется еще {toClear / 1024 / 1024} мб')
+
+            self.__prepare_dir_on_cloud(fullBackupsToUpload, pathToFullBackupCloud)
+            self.__prepare_dir_on_cloud(incrBackupsToUpload, pathToIncrBackupCloud, False)
+
+            for backup in fullBackupsToUpload:
+                dir = os.path.dirname(backup)
+                dirName = os.path.basename(dir)
+                filename = os.path.basename(backup)
+                self.__upload_file(backup, f'{pathToFullBackupCloud}/{dirName}/{filename}')
+
+            for backup in incrBackupsToUpload:
+                filename = os.path.basename(backup)
+                self.__upload_file(backup, f'{pathToIncrBackupCloud}/{filename}')
+
+        def __create_folder(self, path):
+            """Создание папки. \n path: Путь к создаваемой папке."""
+            requests.put(f'{self.manager.get_param("URL")}?path={path}', headers=self.manager.get_param("headers"))
+
+        def __upload_file(self, loadfile, savefile, replace=False):
+            """Загрузка файла.
+            savefile: Путь к файлу на Диске
+            loadfile: Путь к загружаемому файлу
+            replace: true or false Замена файла на Диске"""
+            res = requests.get(f'{self.manager.get_param("URL")}/upload?path={savefile}&overwrite={replace}',
+                               headers=self.manager.get_param("headers")).json()
+            with open(loadfile, 'rb') as f:
                 try:
-                    emptyDirs.remove(path)
-                except ValueError:
-                    continue
-        failedToDelete = []
-        emptyDirs = self.__optimize_remove_list(emptyDirs)
-        for path in emptyDirs:
-            if not self.__delete_obj_on_cloud(path, False):
-                failedToDelete.append(path)
-        return failedToDelete
+                    res = requests.put(res['href'], files={'file': f})
+                    if not res.status_code == 201:
+                        raise Exception(f'Не удалось выгрузить файл {loadfile} в облако. {res.text}')
+                except Exception as e:
+                    raise Exception(f'{traceback.format_exc()}\n{e}')
 
-    def __optimize_remove_list(self, emptyDirs):
-        emptyDirs = set(emptyDirs)
-        tempColl = emptyDirs.copy()
-        for i, sought in enumerate(emptyDirs):
-            for z, target in enumerate(emptyDirs):
-                if z == i:
-                    continue
-                if target.startswith(sought):
+    class Cleaner:
+        manager = None
+
+        def __init__(self, manager):
+            self.manager = manager
+
+        def __delete_obj_on_cloud(self, path, permanently=True):
+            result = False
+            try:
+                res = requests.delete(f'{self.manager.get_param("URL")}?path={path}&permanently={permanently}',
+                                      headers=self.manager.get_param("headers"))
+                if not res.status_code == 202 or not res.status_code == 204:
+                    result = True
+            except Exception as e:
+                raise Exception(f'{traceback.format_exc()}\n{e}')
+            return result
+
+        def __delete_cloud_empty_bck_dirs(self, keepRoots=True):
+            rootDirs = self.__get_root_dirs()
+            emptyDirs = []
+            for path in rootDirs:
+                self.__empty_cloud_dirs(path, emptyDirs)
+
+            if keepRoots:
+                for dir in rootDirs:
+                    path = '/' + dir
                     try:
-                        tempColl.remove(target)
-                    except KeyError:
-                        continue
-        return tempColl
-
-    def __empty_cloud_dirs(self, path, emptyDirs: []):
-        try:
-            limit = 1000000000
-            res = requests.get(f'{Manager.get_param("URL")}?path={path}&limit={limit}',
-                               headers=Manager.get_param("headers"))
-            if not res.status_code == 200:
-                raise Exception(
-                    f'Удаление пустых папок в облаке. Не удалось получить список папок в облаке. {res.text}')
-            data = res.json()
-        except Exception as e:
-            raise Exception(f'{traceback.format_exc()}\n{e}')
-
-        emptyDirs.append(path)
-
-        for item in data['_embedded']['items']:
-            if item['type'] == 'file':
-                firmPath = ''
-                # let's remove each parent directory from the list, going up the level step by step
-                currPath = item['path'].replace('disk:', '').split('/')
-                for i, dir in enumerate(currPath):
-                    if i == 0:
-                        continue
-                    firmPath += f'/{dir}'
-                    try:
-                        emptyDirs.remove(firmPath)
+                        emptyDirs.remove(path)
                     except ValueError:
                         continue
-            if item['type'] == 'dir':
-                subPath = item['path'].replace('disk:', '')
-                self.__empty_cloud_dirs(subPath, emptyDirs)
+            failedToDelete = []
+            emptyDirs = self.__optimize_remove_list(emptyDirs)
+            for path in emptyDirs:
+                if not self.__delete_obj_on_cloud(path, False):
+                    failedToDelete.append(path)
+            return failedToDelete
 
-    def _clean_cloud(self):
-        extraBck = self.__get_extra_bck_on_cloud()
-        failedToDelete = []
-        permanently = False
-        for bck in extraBck:
-            if not self.__delete_obj_on_cloud(bck, permanently):
-                failedToDelete.append(bck)
+        def __optimize_remove_list(self, emptyDirs):
+            emptyDirs = set(emptyDirs)
+            tempColl = emptyDirs.copy()
+            for i, sought in enumerate(emptyDirs):
+                for z, target in enumerate(emptyDirs):
+                    if z == i:
+                        continue
+                    if target.startswith(sought):
+                        try:
+                            tempColl.remove(target)
+                        except KeyError:
+                            continue
+            return tempColl
 
-        info = self.__delete_cloud_empty_bck_dirs()
-        failedToDelete.extend(info)
-        return failedToDelete
+        def __empty_cloud_dirs(self, path, emptyDirs: []):
+            try:
+                limit = 1000000000
+                res = requests.get(f'{self.manager.get_param("URL")}?path={path}&limit={limit}',
+                                   headers=self.manager.get_param("headers"))
+                if not res.status_code == 200:
+                    raise Exception(
+                        f'Удаление пустых папок в облаке. Не удалось получить список папок в облаке. {res.text}')
+                data = res.json()
+            except Exception as e:
+                raise Exception(f'{traceback.format_exc()}\n{e}')
 
-    def __get_extra_bck_on_cloud(self):
-        localPaths = [Manager.get_param("pathToFullBackupLocal"), Manager.get_param("localPathToWALFiles")]
-        existingFilesMD5 = []
-        extraBck = []
+            emptyDirs.append(path)
 
-        for path in localPaths:
-            files = self.__get_objects_list_on_disk(path, onlyFiles=True)
-            hashes = self.__get_md5(files)
-            existingFilesMD5.extend(hashes)
+            for item in data['_embedded']['items']:
+                if item['type'] == 'file':
+                    firmPath = ''
+                    # let's remove each parent directory from the list, going up the level step by step
+                    currPath = item['path'].replace('disk:', '').split('/')
+                    for i, dir in enumerate(currPath):
+                        if i == 0:
+                            continue
+                        firmPath += f'/{dir}'
+                        try:
+                            emptyDirs.remove(firmPath)
+                        except ValueError:
+                            continue
+                if item['type'] == 'dir':
+                    subPath = item['path'].replace('disk:', '')
+                    self.__empty_cloud_dirs(subPath, emptyDirs)
 
-        try:
-            limit = 1000000000
-            res = requests.get(f'{Manager.get_param("URL")}/files?preview_crop=true&sort=path&limit={limit}',
-                               headers=Manager.get_param("headers"))
-            if not res.status_code == 200:
-                raise Exception(f'Очитка облака. Не удалось получить список файлов в облаке. {res.text}')
-            data = res.json()
-        except Exception as e:
-            raise Exception(f'{traceback.format_exc()}\n{e}')
+        def _clean_cloud(self):
+            extraBck = self.__get_extra_bck_on_cloud()
+            failedToDelete = []
+            permanently = False
+            for bck in extraBck:
+                if not self.__delete_obj_on_cloud(bck, permanently):
+                    failedToDelete.append(bck)
 
-        rootDirs = self.__get_root_dirs()
+            info = self.__delete_cloud_empty_bck_dirs()
+            failedToDelete.extend(info)
+            return failedToDelete
 
-        for item in data['items']:
-            isBckDir = False
-            for dir in rootDirs:
-                if dir == item['path'].split('/')[1]:
-                    isBckDir = True
-            if isBckDir:
-                try:
-                    existingFilesMD5.index(item['md5'])
-                    continue
-                except ValueError:
-                    extraBck.append(item['path'].replace('disk:', ''))
+        def __get_extra_bck_on_cloud(self):
+            localPaths = [self.manager.get_param("pathToFullBackupLocal"),
+                          self.manager.get_param("localPathToWALFiles")]
+            existingFilesMD5 = []
+            extraBck = []
 
-        return extraBck
+            for path in localPaths:
+                files = self.__get_objects_list_on_disk(path, onlyFiles=True)
+                hashes = self.__get_md5(files)
+                existingFilesMD5.extend(hashes)
 
-    def __get_root_dirs(self):
-        rootDirs = [Manager.get_param("pathToFullBackupCloud"), Manager.get_param("pathToIncrBackupCloud")]
-        for i, val in enumerate(rootDirs):
-            rootDirs[i] = val.split("/")[1]
-        return rootDirs
+            try:
+                limit = 1000000000
+                res = requests.get(f'{self.manager.get_param("URL")}/files?preview_crop=true&sort=path&limit={limit}',
+                                   headers=self.manager.get_param("headers"))
+                if not res.status_code == 200:
+                    raise Exception(f'Очитка облака. Не удалось получить список файлов в облаке. {res.text}')
+                data = res.json()
+            except Exception as e:
+                raise Exception(f'{traceback.format_exc()}\n{e}')
 
-    def __get_md5(self, files):
-        hashes = []
-        for path in files:
-            hash_md5 = hashlib.md5()
-            with open(path, "rb") as file:
-                for chunk in iter(lambda: file.read(4096), b""):
-                    hash_md5.update(chunk)
-            hashes.append(hash_md5.hexdigest())
-        return hashes
+            rootDirs = self.__get_root_dirs()
 
-    def _cleanLocal(self, expire_date):
-        full_bck = self.__full_bck_to_remove(expire_date)
-        for obj in full_bck:
-            os.remove(obj)
+            for item in data['items']:
+                isBckDir = False
+                for dir in rootDirs:
+                    if dir == item['path'].split('/')[1]:
+                        isBckDir = True
+                if isBckDir:
+                    try:
+                        existingFilesMD5.index(item['md5'])
+                        continue
+                    except ValueError:
+                        extraBck.append(item['path'].replace('disk:', ''))
 
-        mask = '__backup_manifest'
-        full_bck = self.__get_objects_list_on_disk(Manager.get_param('pathToFullBackupLocal'), mask)
+            return extraBck
 
-        oldest_date = datetime.datetime.now(tzlocal.get_localzone())
-        oldest_label = None
-        for file in full_bck:
-            fileName = os.path.basename(file)
-            if mask in fileName:
-                date_str = self.__read_create_date(file)
-                bck_date = parser.parse(date_str)
-                if oldest_date >= bck_date:
-                    oldest_date = bck_date
-                    oldest_label = fileName.replace(mask, '')
+        def __get_root_dirs(self, level=2):
+            rootDirs = [self.manager.get_param("pathToFullBackupCloud"),
+                        self.manager.get_param("pathToIncrBackupCloud")]
+            for i, val in enumerate(rootDirs):
+                temp = val.split("/")
+                rootDirs[i] = f'/{temp[1]}/{temp[2]}'
 
-        if oldest_label is not None:
-            inc_bck = self.__inc_bck_to_remove(Manager.get_param("localPathToWALFiles"), oldest_label)
-            for obj in inc_bck:
+            return set(rootDirs)
+
+        def __get_md5(self, files):
+            hashes = []
+            for path in files:
+                hash_md5 = hashlib.md5()
+                with open(path, "rb") as file:
+                    for chunk in iter(lambda: file.read(4096), b""):
+                        hash_md5.update(chunk)
+                hashes.append(hash_md5.hexdigest())
+            return hashes
+
+        def _cleanLocal(self, expire_date):
+            full_bck = self.__full_bck_to_remove(expire_date)
+            for obj in full_bck:
                 os.remove(obj)
 
-        self.__delete_local_empty_bck_dirs()
+            mask = '__backup_manifest'
+            full_bck = self.__get_objects_list_on_disk(self.manager.get_param('pathToFullBackupLocal'), mask)
 
-    def __number_inc_bck(self, path, label):
-        result = None
+            oldest_date = datetime.datetime.now(tzlocal.get_localzone())
+            oldest_label = None
+            for file in full_bck:
+                fileName = os.path.basename(file)
+                if mask in fileName:
+                    date_str = self.__read_create_date(file)
+                    bck_date = parser.parse(date_str)
+                    if oldest_date >= bck_date:
+                        oldest_date = bck_date
+                        oldest_label = fileName.replace(mask, '')
 
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                if not '.backup' in file:
-                    continue
-                try:
-                    with open(os.path.join(root, file)) as content:
-                        temp_res = ''
-                        for line in content:
-                            if 'START WAL LOCATION' in line:
-                                temp_res = line.split('file ')[1]
-                            if label in line:
-                                if ')' in temp_res:
-                                    temp_res = temp_res.split(')')[0]
-                                result = '0x' + temp_res
-                                break
+            if oldest_label is not None:
+                inc_bck = self.__inc_bck_to_remove(self.manager.get_param("localPathToWALFiles"), oldest_label)
+                for obj in inc_bck:
+                    os.remove(obj)
 
-                except Exception as e:
-                    print("TROUBLE - " + str(e))
-                    continue
+            self.__delete_local_empty_bck_dirs()
 
-        if result is not None:
-            result = int(result, base=16)
-        return result
+        def __number_inc_bck(self, path, label):
+            result = None
 
-    def __inc_bck_to_remove(self, path, oldest_label, delete_unsuitable=False):
-        oldest_number = self.__number_inc_bck(path, oldest_label)
-        to_remove = []
-        if oldest_number is None:
+            for root, dirs, files in os.walk(path):
+                for file in files:
+                    if not '.backup' in file:
+                        continue
+                    try:
+                        with open(os.path.join(root, file)) as content:
+                            temp_res = ''
+                            for line in content:
+                                if 'START WAL LOCATION' in line:
+                                    temp_res = line.split('file ')[1]
+                                if label in line:
+                                    if ')' in temp_res:
+                                        temp_res = temp_res.split(')')[0]
+                                    result = '0x' + temp_res
+                                    break
+
+                    except Exception as e:
+                        print("TROUBLE - " + str(e))
+                        continue
+
+            if result is not None:
+                result = int(result, base=16)
+            return result
+
+        def __inc_bck_to_remove(self, path, oldest_label, delete_unsuitable=False):
+            oldest_number = self.__number_inc_bck(path, oldest_label)
+            to_remove = []
+            if oldest_number is None:
+                return to_remove
+
+            for root, dirs, files in os.walk(path):
+                for file in files:
+                    filename = file
+                    if '.' in filename:
+                        filename = filename.split('.')[0]
+                    filename = '0x' + filename
+                    try:
+                        curNumber = int(filename, base=16)
+                        if curNumber < oldest_number:
+                            to_remove.append(os.path.join(root, file))
+                    except Exception:
+                        if delete_unsuitable:
+                            to_remove.append(os.path.join(root, file))
+
             return to_remove
 
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                filename = file
-                if '.' in filename:
-                    filename = filename.split('.')[0]
-                filename = '0x' + filename
-                try:
-                    curNumber = int(filename, base=16)
-                    if curNumber < oldest_number:
-                        to_remove.append(os.path.join(root, file))
-                except Exception:
-                    if delete_unsuitable:
-                        to_remove.append(os.path.join(root, file))
+        def __full_bck_to_remove(self, exprireDate: datetime):
+            fullBck = self.__get_objects_list_on_disk(self.manager.get_param('pathToFullBackupLocal'))
+            result = []
+            mask = '__backup_manifest'
+            for file in fullBck:
+                fileName = os.path.basename(file)
+                if mask in fileName:
+                    dateStr = self.__read_create_date(file)
+                    bckDate = parser.parse(dateStr)
+                    if bckDate <= exprireDate:
+                        portion = self.__get_objects_list_on_disk(os.path.dirname(file), fileName.split(mask)[0])
+                        result.extend(portion)
+            return result
 
-        return to_remove
+        def __read_create_date(self, backupManifest: str):
+            with open(backupManifest) as json_file:
+                data = json.load(json_file)
+                for p in data['Files']:
+                    if p['Path'] == 'backup_label':
+                        return p['Last-Modified']
 
-    def __full_bck_to_remove(self, exprireDate: datetime):
-        fullBck = self.__get_objects_list_on_disk(Manager.get_param('pathToFullBackupLocal'))
-        result = []
-        mask = '__backup_manifest'
-        for file in fullBck:
-            fileName = os.path.basename(file)
-            if mask in fileName:
-                dateStr = self.__read_create_date(file)
-                bckDate = parser.parse(dateStr)
-                if bckDate <= exprireDate:
-                    portion = self.__get_objects_list_on_disk(os.path.dirname(file), fileName.split(mask)[0])
-                    result.extend(portion)
-        return result
-
-    def __read_create_date(self, backupManifest: str):
-        with open(backupManifest) as json_file:
-            data = json.load(json_file)
-            for p in data['Files']:
-                if p['Path'] == 'backup_label':
-                    return p['Last-Modified']
-
-    def __get_objects_list_on_disk(self, path, mask=None, onlyFiles=False):
-        objects_list = []
-        for root, dirs, files in os.walk(path):
-            for filename in files:
-                if mask is not None:
-                    if mask not in filename:
-                        continue
-                objects_list.append(os.path.join(root, filename))
-
-            if not onlyFiles:
-                for dir in dirs:
+        def __get_objects_list_on_disk(self, path, mask=None, onlyFiles=False):
+            objects_list = []
+            for root, dirs, files in os.walk(path):
+                for filename in files:
                     if mask is not None:
-                        if mask not in dir:
+                        if mask not in filename:
                             continue
-                    objects_list.append(os.path.join(root, dir))
+                    objects_list.append(os.path.join(root, filename))
 
-        return objects_list
-
-    def __delete_local_empty_bck_dirs(self):
-        arr = [Manager.get_param('pathToFullBackupLocal'), Manager.get_param('localPathToWALFiles')]
-        for path in arr:
-            if os.path.exists(path):
-                for root, dirs, files in os.walk(path):
+                if not onlyFiles:
                     for dir in dirs:
-                        dirPath = os.path.join(root, dir)
-                        content = self.__get_objects_list_on_disk(dirPath, onlyFiles=True)
-                        if len(content) == 0:
-                            os.rmdir(dirPath)
+                        if mask is not None:
+                            if mask not in dir:
+                                continue
+                        objects_list.append(os.path.join(root, dir))
+
+            return objects_list
+
+        def __delete_local_empty_bck_dirs(self):
+            arr = [self.manager.get_param('pathToFullBackupLocal'), self.manager.get_param('localPathToWALFiles')]
+            for path in arr:
+                if os.path.exists(path):
+                    for root, dirs, files in os.walk(path):
+                        for dir in dirs:
+                            dirPath = os.path.join(root, dir)
+                            content = self.__get_objects_list_on_disk(dirPath, onlyFiles=True)
+                            if len(content) == 0:
+                                os.rmdir(dirPath)
+
 
 # Press the green button in the gutter to run the script.
-# if __name__ == '__main__':
-#     Backuper.main()
+if __name__ == '__main__':
+    m = Manager()
+    m._test()
