@@ -56,7 +56,7 @@ class LauncherPostgreSQLBackupFor1cKiP(BaseScenario):
     def _real(self):
 
         global_logger.info(message="897979797979Starting backup")
-        manager = Manager(self.config.scenario_context, ArgsInLowerCase=True)
+        manager = Manager(self.config.scenario_context, args_in_lower_case=True)
 
 
         # For debug
