@@ -40,7 +40,7 @@ td { padding: 0px; padding-left: 2px; overflow:hidden; }
 <TR CLASS=R0>
 <TD CLASS="R1C0"><SPAN STYLE="white-space:nowrap;max-width:0px;">2</SPAN></TD>
 <TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">Корневой&nbsp;каталог&nbsp;бэкапов.&nbsp;Уроевень&nbsp;2</SPAN></TD>
-<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">rootdir</SPAN></TD>
+<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">root_dir</SPAN></TD>
 <TD CLASS="R1C3"><SPAN STYLE="white-space:nowrap;max-width:0px;">Например&nbsp;Postgresql&nbsp;backups</SPAN></TD>
 <TD><SPAN></SPAN></TD>
 <TD></TD>
@@ -48,7 +48,7 @@ td { padding: 0px; padding-left: 2px; overflow:hidden; }
 <TR CLASS=R0>
 <TD CLASS="R1C0"><SPAN STYLE="white-space:nowrap;max-width:0px;">3</SPAN></TD>
 <TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">Каталог&nbsp;инстансов&nbsp;для&nbsp;бэкапов.&nbsp;Уроевень&nbsp;3</SPAN></TD>
-<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">customdir</SPAN></TD>
+<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">custom_dir</SPAN></TD>
 <TD CLASS="R1C3"><SPAN STYLE="white-space:nowrap;max-width:0px;">Папка&nbsp;для&nbsp;облака&nbsp;и&nbsp;локальной&nbsp;машины&nbsp;для&nbsp;логической&nbsp;раскладки&nbsp;(по&nbsp;магазинам)&nbsp;бэкапов&nbsp;&nbsp;Например&nbsp;Accounting&nbsp;department¶</SPAN></TD>
 <TD><SPAN></SPAN></TD>
 <TD></TD>
@@ -56,7 +56,7 @@ td { padding: 0px; padding-left: 2px; overflow:hidden; }
 <TR CLASS=R0>
 <TD CLASS="R1C0"><SPAN STYLE="white-space:nowrap;max-width:0px;">4</SPAN></TD>
 <TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">Подкаталог&nbsp;полных&nbsp;бэкапов.Уроевень&nbsp;4</SPAN></TD>
-<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">fullbpdir</SPAN></TD>
+<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">full_bp_dir</SPAN></TD>
 <TD CLASS="R1C3"><SPAN STYLE="white-space:nowrap;max-width:0px;">Например&nbsp;Full</SPAN></TD>
 <TD><SPAN></SPAN></TD>
 <TD></TD>
@@ -64,7 +64,7 @@ td { padding: 0px; padding-left: 2px; overflow:hidden; }
 <TR CLASS=R0>
 <TD CLASS="R1C0"><SPAN STYLE="white-space:nowrap;max-width:0px;">5</SPAN></TD>
 <TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">Путь&nbsp;к&nbsp;WAL&nbsp;файлам</SPAN></TD>
-<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">localpathtowalfiles</SPAN></TD>
+<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">local_path_to_wal_files</SPAN></TD>
 <TD CLASS="R1C3"><SPAN STYLE="white-space:nowrap;max-width:0px;">Необходимо&nbsp;указать&nbsp;тот,&nbsp;что&nbsp;указан&nbsp;настройках&nbsp;конкретного&nbsp;инстанса&nbsp;PostgreeSQL&nbsp;&nbsp;Например&nbsp;&nbsp;C:\\pg_log_archive</SPAN></TD>
 <TD><SPAN></SPAN></TD>
 <TD></TD>
@@ -72,7 +72,7 @@ td { padding: 0px; padding-left: 2px; overflow:hidden; }
 <TR CLASS=R0>
 <TD CLASS="R1C0"><SPAN STYLE="white-space:nowrap;max-width:0px;">6</SPAN></TD>
 <TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">Путь&nbsp;к&nbsp;каталогу&nbsp;сервера&nbsp;PostgreSQL</SPAN></TD>
-<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">postgresqlisntancepath</SPAN></TD>
+<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">postgresql_isntance_path</SPAN></TD>
 <TD CLASS="R1C3"><SPAN STYLE="white-space:nowrap;max-width:0px;">&nbsp;Например&nbsp;&nbsp;C:\\Program&nbsp;Files\\PostgreSQL\\14.4-1.1C\\</SPAN></TD>
 <TD><SPAN></SPAN></TD>
 <TD></TD>
@@ -80,7 +80,7 @@ td { padding: 0px; padding-left: 2px; overflow:hidden; }
 <TR CLASS=R0>
 <TD CLASS="R1C0"><SPAN STYLE="white-space:nowrap;max-width:0px;">7</SPAN></TD>
 <TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">Имя&nbsp;пользователя&nbsp;PostgreSQL</SPAN></TD>
-<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">postgresqlusername</SPAN></TD>
+<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">postgresql_username</SPAN></TD>
 <TD CLASS="R1C3"><SPAN></SPAN></TD>
 <TD><SPAN></SPAN></TD>
 <TD></TD>
@@ -88,7 +88,7 @@ td { padding: 0px; padding-left: 2px; overflow:hidden; }
 <TR CLASS=R0>
 <TD CLASS="R1C0"><SPAN STYLE="white-space:nowrap;max-width:0px;">8</SPAN></TD>
 <TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">Пароль&nbsp;к&nbsp;PostgreSQL</SPAN></TD>
-<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">postgresqlpassword</SPAN></TD>
+<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">postgresql_password</SPAN></TD>
 <TD CLASS="R1C3"><SPAN></SPAN></TD>
 <TD><SPAN></SPAN></TD>
 <TD></TD>
@@ -96,7 +96,7 @@ td { padding: 0px; padding-left: 2px; overflow:hidden; }
 <TR CLASS=R0>
 <TD CLASS="R1C0"><SPAN STYLE="white-space:nowrap;max-width:0px;">9</SPAN></TD>
 <TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">Токен&nbsp;Яндекс&nbsp;облака</SPAN></TD>
-<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">cloudtoken</SPAN></TD>
+<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">cloud_token</SPAN></TD>
 <TD CLASS="R1C3"><SPAN></SPAN></TD>
 <TD><SPAN></SPAN></TD>
 <TD></TD>
@@ -104,7 +104,7 @@ td { padding: 0px; padding-left: 2px; overflow:hidden; }
 <TR CLASS=R0>
 <TD CLASS="R1C0"><SPAN STYLE="white-space:nowrap;max-width:0px;">10</SPAN></TD>
 <TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">Записывать&nbsp;в&nbsp;отдельный&nbsp;лог-файл</SPAN></TD>
-<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">writetologfile</SPAN></TD>
+<TD CLASS="R1C1"><SPAN STYLE="white-space:nowrap;max-width:0px;">write_to_log_file</SPAN></TD>
 <TD CLASS="R1C3"><SPAN></SPAN></TD>
 <TD><SPAN></SPAN></TD>
 <TD></TD>
