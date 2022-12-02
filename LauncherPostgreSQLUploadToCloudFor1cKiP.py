@@ -76,7 +76,7 @@ class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
 
         try:
             global_logger.info(message="Starting upload to Cloud")
-            manager.upload_on_yandex_cloud(writetologfile, True)
+            manager.upload_on_cloud(writetologfile, True)
             global_logger.info(message="Бэкапы PostgreSQL успешно выгружены в облако")
         except Exception as e:
             error = str(e)
