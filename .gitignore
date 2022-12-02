@@ -1,3 +1,10 @@
 /python-3.10/
 /PostgreSQLBackuperLogs/
 /python/
+/aws_access_key_id
+/aws_secret_access_key
+/-date/
+/.exe/
+/date/
+/venv/
+/token
