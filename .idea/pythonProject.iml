@@ -8,7 +8,7 @@
       <sourceFolder url="file://$MODULE_DIR$/python-3.10/Lib/site-packages" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/python" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.10 (AutoBackupPG) (2)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.9 (pythonProject)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
