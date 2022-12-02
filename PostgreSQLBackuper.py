@@ -40,15 +40,32 @@ class Func:
         return objects_list
 
     @staticmethod
-    def get_md5(files):
-        hashes = []
-        for path in files:
-            hash_md5 = hashlib.md5()
-            with open(path, "rb") as file:
-                for chunk in iter(lambda: file.read(4096), b""):
-                    hash_md5.update(chunk)
-            hashes.append(hash_md5.hexdigest())
-        return hashes
+    def get_md5(file, chunk_size=None):
+        if chunk_size is not None:
+            md5s = []
+            with open(file, 'rb') as fp:
+                while True:
+                    data = fp.read(chunk_size)
+                    if not data:
+                        break
+                    md5s.append(hashlib.md5(data))
+
+            if len(md5s) < 1:
+                return '{}'.format(hashlib.md5().hexdigest())
+
+            if len(md5s) == 1:
+                return '{}'.format(md5s[0].hexdigest())
+
+            digests = b''.join(m.digest() for m in md5s)
+            digests_md5 = hashlib.md5(digests)
+            return '{}-{}'.format(digests_md5.hexdigest(), len(md5s))
+
+        hash_md5 = hashlib.md5()
+        with open(file, "rb") as file:
+            for chunk in iter(lambda: file.read(4096), b""):
+                hash_md5.update(chunk)
+        _hash = hash_md5.hexdigest()
+        return _hash
 
     @staticmethod
     def get_md5_aws(session_client, bucket_name, resource_name):
@@ -63,7 +80,34 @@ class Func:
 
         return md5sum
 
+    @staticmethod
+    def bucket_exists_and_accessible(s3_client, bucket_name):
+        try:
+            s3_client.head_bucket(Bucket=bucket_name)
+            message = None
+        except Exception as e:
+            err_code = e.response.get('Error').get('Code')
+            if err_code == '404':
+                message = f'Bucket "{bucket_name}" does not exist'
+            elif err_code == '403':
+                message = f'Access to the bucket "{bucket_name}" is forbidden'
+        return message
 
+    @staticmethod
+    def _get_objects_on_aws(s3_client, bucket, verification_path, only_files=True, with_hash=True):
+        result = []
+        for obj in s3_client.list_objects(Bucket=bucket)['Contents']:
+            resource_name = obj['Key']
+            if resource_name.endswith('/') and only_files:
+                continue
+            if resource_name.startswith(verification_path):
+                if with_hash:
+                    md5 = Func.get_md5_aws(s3_client, bucket, resource_name)
+                    item = {'Hash': md5, 'Path': resource_name}
+                else:
+                    item = resource_name
+                result.append(item)
+        return result
 class Args(object):
     # Paths settings
     """
@@ -90,14 +134,14 @@ class Args(object):
     __aws_access_key_id: str = None
     __aws_secret_access_key: str = None
     __aws_endpoint_url: str = None
+    __aws_bucket: str = None
 
     def __getitem__(self, item):
         return getattr(self, item)
 
     def __init__(self, args=None, in_lower_case=True):
         self.set_params(args, in_lower_case)
-        if not self._check_params():
-            raise Exception('Required parameter is missing')
+
 
     def set_params(self, args=None, in_lower_case=True):
         if args is not None:
@@ -108,21 +152,18 @@ class Args(object):
         else:
             self.__set_default_params()
 
-    def _check_params(self):
-        result = True
-        req_arg = [self.__disk,
-                   self.__root_dir,
-                   self.__custom_dir,
-                   self.__full_bp_dir,
-                   self.__local_path_to_wal_files,
-                   self.__postgresql_isntance_path,
-                   self.__postgresql_username,
-                   self.__postgresql_password,
-                   self.__cloud_token]
+    def check_params(self, req_arg, in_lower_case=True):
+        args = {}
         for arg in req_arg:
-            if arg is None or arg == '':
-                result = False
-                break
+            arg_mod = str.lower(arg) if in_lower_case else arg
+            get_method = self[arg_mod]
+            args.update({arg: get_method})
+        result = []
+
+        for arg, get_method in args.items():
+            val = get_method()
+            if val is None or val == '':
+                result.append(arg)
 
         return result
 
@@ -142,7 +183,6 @@ class Args(object):
         self.__postgresql_isntance_path = 'C:\\Program Files\\PostgreSQL\\14.4-1.1C\\'  # The path to PostgreSQL
         self.__postgresql_username = 'postgres'
         self.__postgresql_password = '1122'
-        self.__cloud_token = 'jjj'
 
     def __generate_label(self, millisec=False):
         if millisec:
@@ -155,25 +195,7 @@ class Args(object):
     # Getters
 
     def aws_bucket(self):
-        valid_characters = '0123456789qwertyuiopasdfghjklzxcvbnm-.'
-        valid_first_last = '0123456789qwertyuiopasdfghjklzxcvbnm'
-        bucket = self.root_dir().lower()
-
-        if bucket[0] not in valid_first_last:
-            bucket = 'a' + bucket
-        temp_str = ''
-
-        for s in bucket:
-            if s in valid_characters:
-                temp_str += s
-            else:
-                temp_str += '-'
-        bucket = temp_str
-
-        if bucket[len(bucket) - 1] not in valid_first_last:
-            bucket = bucket + "z"
-
-        return bucket
+        return self.__aws_bucket
 
     def aws_access_key_id(self):
         return self.__aws_access_key_id
@@ -193,8 +215,11 @@ class Args(object):
     def disk(self):
         return self.__disk
 
-    def root_dir(self):
-        return self.__root_dir
+    def root_dir(self, for_aws=False):
+        if for_aws:
+            return self.aws_correct_folder_name(self.__root_dir)
+        else:
+            return self.__root_dir
 
     def custom_dir(self, for_aws=False):
         if for_aws:
@@ -247,20 +272,19 @@ class Args(object):
         return f'{self.disk()}:\\{self.root_dir()}\\{self.custom_dir()}\\{self.full_bp_dir()}'
 
     def path_to_full_backup_cloud(self, for_aws=False):
-        if for_aws:
-            # The path to the permanent  directory for full backup, without the bucket
-            return f'{self.custom_dir(True)}/{self.full_bp_dir(True)}'
-        else:
-            # The path to the permanent  directory for full backup
-            return f'/{self.root_dir()}/{self.custom_dir()}/{self.full_bp_dir()}'
+        path = f'{self.root_dir(for_aws)}/{self.custom_dir(for_aws)}/{self.full_bp_dir(for_aws)}'
+        if not for_aws:
+            path = f'/{path}'
+        return path
 
     def path_to_incr_backup_cloud(self, for_aws=False):
         incr_bp_dir = os.path.basename(self.local_path_to_wal_files())
         if for_aws:
             incr_bp_dir = self.aws_correct_folder_name(incr_bp_dir)
-            return f'{self.custom_dir(True)}/{incr_bp_dir}'
-        else:
-            return f'/{self.root_dir()}/{self.custom_dir()}/{incr_bp_dir}'
+        path = f'{self.root_dir(for_aws)}/{self.custom_dir(for_aws)}/{incr_bp_dir}'
+        if not for_aws:
+            path = f'/{path}'
+        return path
 
     def label(self):
         if self.__label is None or self.__label == '':
@@ -272,6 +296,12 @@ class Args(object):
             var = 'https://cloud-api.yandex.net/v1/disk/resources'
             self.__url = var
         return self.__url
+
+    def path_to_cloud_custom_dir(self, for_aws=False):
+        path = f'{self.root_dir(for_aws)}/{self.custom_dir(for_aws)}'
+        if not for_aws:
+            path = f'/{path}'
+        return path
 
     # Setters
     def set_aws_access_key_id(self, val: str):
@@ -325,6 +355,8 @@ class Args(object):
     def set_url(self, val: str):
         self.__url = val
 
+    def set_aws_bucket(self, val: str):
+        self.__aws_bucket = val
     def aws_correct_folder_name(self, _dir: str):
         valid_characters = '0123456789qwertyuiopasdfghjklzxcvbnmйцукенгшщзхъфывапролджэячсмитьбюё'
         if _dir[0].lower() not in valid_characters:
@@ -396,7 +428,7 @@ class UploaderYandex:
         self.manager = manager
         self.args = args
 
-    def __get_files_to_upload(self, backups, pathCloud, withLastDir=True):
+    def __compute_files_to_upload(self, backups, pathCloud, withLastDir=True):
         to_upload = []
         for backup in backups:
             _dir = os.path.dirname(backup)
@@ -461,15 +493,15 @@ class UploaderYandex:
         except Exception as e:
             raise Exception(f'{traceback.format_exc()}\n{e}')
 
-    def upload_on_yandex_cloud(self):
+    def upload_on_cloud(self):
         full_backups = Func.get_objects_list_on_disk(self.args.path_to_full_backup_local())
         incr_backups = Func.get_objects_list_on_disk(self.args.local_path_to_wal_files())
 
         path_to_full_backup_cloud = self.args.path_to_full_backup_cloud()
         path_to_incr_backup_cloud = self.args.path_to_incr_backup_cloud()
 
-        full_backups_to_upload = self.__get_files_to_upload(full_backups, path_to_full_backup_cloud)
-        incr_backups_to_upload = self.__get_files_to_upload(incr_backups, path_to_incr_backup_cloud, False)
+        full_backups_to_upload = self.__compute_files_to_upload(full_backups, path_to_full_backup_cloud)
+        incr_backups_to_upload = self.__compute_files_to_upload(incr_backups, path_to_incr_backup_cloud, False)
 
         upload_size = 0
         for file_path in full_backups_to_upload:
@@ -531,18 +563,22 @@ class UploaderAWSS3:
         self.args = args
         self.aws_client = aws_client
 
-    @property
-    def _upload_on_aws_cloud(self):
 
+    def upload_on_cloud(self):
+        bucket = self.args.aws_bucket()
+        message = Func.bucket_exists_and_accessible(self.aws_client, bucket)
+        if message is not None:
+            raise Exception(message)
         local_path_wal = self.args.local_path_to_wal_files()
         local_path_full = self.args.path_to_full_backup_local()
-        bucket = self.args.aws_bucket()
+
 
         local_backups = Func.get_objects_list_on_disk(local_path_full)
         local_backups.extend(Func.get_objects_list_on_disk(local_path_wal))
 
-        cloud_backups = self._get_files_list_on_cloud(bucket, self.args.custom_dir(True))
-        backups_to_upload = self.__get_files_to_upload(local_backups, cloud_backups)
+        cloud_backups = Func._get_objects_on_aws(self.aws_client, bucket, self.args.path_to_cloud_custom_dir(True))
+        standart_chunk_size = 8388608
+        backups_to_upload = self.__compute_files_to_upload(local_backups, cloud_backups, standart_chunk_size)
 
         if len(backups_to_upload) == 0:
             return 'Нет новых файлов для выгрузки'
@@ -550,6 +586,7 @@ class UploaderAWSS3:
         cloud_path_full = self.args.path_to_full_backup_cloud(for_aws=True)
         cloud_path_wal = self.args.path_to_incr_backup_cloud(for_aws=True)
 
+        upload_config = boto3.s3.transfer.TransferConfig(multipart_chunksize=standart_chunk_size)
         for backup_local in backups_to_upload:
             if local_path_wal in backup_local:
                 cloud_path = cloud_path_wal
@@ -560,9 +597,10 @@ class UploaderAWSS3:
 
             file_name = os.path.basename(backup_local)
             savefile = f'{cloud_path}/{file_name}'
-            self.aws_client.upload_file(backup_local, bucket, savefile)
+            self.aws_client.upload_file(backup_local, bucket, savefile, Config=upload_config)
 
-    def __get_files_to_upload(self, local_backups: [], cloud_backups: []):
+
+    def __compute_files_to_upload(self, local_backups: [], cloud_backups: [], chunk_size):
         to_upload = local_backups.copy()
 
         for backup_local in local_backups:
@@ -572,28 +610,18 @@ class UploaderAWSS3:
             parent_dir = self.args.aws_correct_folder_name(parent_dir)
             search_string = f'{parent_dir}/{file_name}'
 
+            md5_local = Func.get_md5(backup_local,chunk_size)
             for cloud_backup in cloud_backups:
-                if search_string in cloud_backup['Path']:
-                    md5_local = Func.get_md5(cloud_backup['Path'])
-                    if md5_local == cloud_backup['Hash']:
-                        try:
-                            to_upload.remove(backup_local)
-                            break
-                        except KeyError or ValueError:
-                            break
+                if search_string in cloud_backup['Path'] and md5_local == cloud_backup['Hash']:
+                    try:
+                        to_upload.remove(backup_local)
+                        break
+                    except KeyError or ValueError:
+                        break
 
         return to_upload
 
-    def _get_files_list_on_cloud(self, bucket, custom_dir):
-        result = []
-        for obj in self.aws_client.list_objects(Bucket=bucket)['Contents']:
-            if obj['Size'] == 0:
-                continue
-            resource_name = obj['Key']
-            if custom_dir + '/' in resource_name:
-                md5 = Func.get_md5_aws(self.aws_client, bucket, resource_name)
-                result.append({'Hash': md5, 'Path': resource_name})
-        return result
+
 
 
 class Cleaner:
@@ -620,11 +648,11 @@ class Cleaner:
         return result
 
     def __delete_empty_dirs_on_aws(self):
-        custom_dir = self.args.custom_dir(for_aws=True)
-        empty_dirs = self.__empty_aws_cloud_dirs(custom_dir)
+        verification_path = self.args.path_to_cloud_custom_dir(for_aws=True)
+        empty_dirs = self.__empty_aws_cloud_dirs(verification_path)
 
         try:
-            empty_dirs.remove(custom_dir + '/')
+            empty_dirs.remove(verification_path + '/')
         except ValueError:
             a = 1
 
@@ -699,8 +727,8 @@ class Cleaner:
                 sub_path = item['path'].replace('disk:', '')
                 self.__empty_yandex_cloud_dirs(sub_path, empty_dirs)
 
-    def __empty_aws_cloud_dirs(self, custom_dir):
-        obj_on_aws = self._get_objects_on_aws(self.args.aws_bucket(), custom_dir, only_files=False, with_hash=False)
+    def __empty_aws_cloud_dirs(self, verification_path):
+        obj_on_aws = Func._get_objects_on_aws(self.aws_client, self.args.aws_bucket(), verification_path, only_files=False, with_hash=False)
         obj_on_aws = set(obj_on_aws)
         result = obj_on_aws.copy()
 
@@ -741,8 +769,8 @@ class Cleaner:
 
         for path in local_paths:
             files = Func.get_objects_list_on_disk(path, only_files=True)
-            hashes = Func.get_md5(files)
-            existing_files_md5.extend(hashes)
+            for file in files:
+                existing_files_md5.append(Func.get_md5(file))
 
         if self.aws_client is not None:
             extra_bck = self._calculate_extra_on_aws(existing_files_md5)
@@ -753,7 +781,7 @@ class Cleaner:
 
     def _calculate_extra_on_aws(self, existingFilesMD5):
         extra_bck = []
-        cloud_backups = self._get_objects_on_aws(self.args.aws_bucket(), self.args.custom_dir(for_aws=True))
+        cloud_backups = Func._get_objects_on_aws(self.aws_client, self.args.aws_bucket(), self.args.path_to_cloud_custom_dir(for_aws=True))
         for cloud_backup in cloud_backups:
             try:
                 existingFilesMD5.index(cloud_backup['Hash'])
@@ -763,20 +791,7 @@ class Cleaner:
 
         return extra_bck
 
-    def _get_objects_on_aws(self, bucket, custom_dir, only_files=True, with_hash=True):
-        result = []
-        for obj in self.aws_client.list_objects(Bucket=bucket)['Contents']:
-            if obj['Size'] == 0 and only_files:
-                continue
-            resource_name = obj['Key']
-            if custom_dir == resource_name.split('/')[0]:
-                if with_hash:
-                    item = resource_name
-                else:
-                    md5 = Func.get_md5_aws(self.aws_client, bucket, resource_name)
-                    item = {'Hash': md5, 'Path': resource_name}
-                result.append(item)
-        return result
+
 
     def _calculate_extra_on_yandex_cloud(self, existing_files_md5):
         extra_bck = []
@@ -921,59 +936,122 @@ class Cleaner:
                             os.rmdir(dir_path)
 
 
-class Manager:
-    uploader = None
-    backaper = None
-    cleaner = None
-    args = None
-    s3 = None
 
-    def __init__(self, new_args=None, args_in_lower_case=False):
-        try:
-            self.args = Args(new_args, args_in_lower_case)
-        except Exception as e:
-            self.write_log('backup-', False, str(e))
-        self.backaper = Backuper(self, self.args)
-        session = boto3.session.Session()
-        s3 = session.client(
-            service_name='s3',
-            endpoint_url=self.args.aws_endpoint_url(),
-            aws_access_key_id=self.args.aws_access_key_id(),
-            aws_secret_access_key=self.args.aws_secret_access_key(),
-        )
-        self.s3 = s3
-        self.cleaner = Cleaner(self, self.args, s3)
-        self.uploader = UploaderYandex(self, self.args, s3)
+
+class Manager:
+    __uploader = None
+    __backaper = None
+    __cleaner = None
+    __args = None
+    __aws_client = None
+
+    def __init__(self, new_args=None, args_in_lower_case=False, use_backuper=True, use_cleaner=True, use_yandex=False, use_aws=True):
+
+        if use_cleaner and not (use_yandex or use_aws):
+            use_aws = True
+        if not (use_backuper or use_cleaner or use_yandex or use_aws):
+            use_backuper = True
+
+        self.__args = Args(new_args, args_in_lower_case)
+        req_arg = self.get_args_for_check(use_backuper, use_cleaner, use_yandex, use_aws)
+        errors = self.__args.check_params(req_arg, args_in_lower_case)
+        if len(errors) > 0:
+            message = 'The following arguments are not filled in - '
+            for err_arg in errors:
+                message += err_arg + ', '
+
+            self.write_log('backup-', False, message)
+            raise Exception(message)
+
+        if use_backuper:
+            self.__backaper = Backuper(self, self.__args)
+
+        if use_aws:
+            session = boto3.session.Session()
+            self.__aws_client = session.client(
+                service_name='s3',
+                endpoint_url=self.__args.aws_endpoint_url(),
+                aws_access_key_id=self.__args.aws_access_key_id(),
+                aws_secret_access_key=self.__args.aws_secret_access_key(),
+            )
+            self.__uploader = UploaderAWSS3(self, self.__args, self.__aws_client)
+        elif use_yandex:
+            self.__uploader = UploaderYandex(self, self.__args)
+
+        if use_cleaner:
+            self.__cleaner = Cleaner(self, self.__args, self.__aws_client)
+
+
+
+    def get_args_for_check(self, use_backuper, use_cleaner, use_yandex, use_aws):
+        req_args = [
+                'disk',
+                'root_dir',
+                'custom_dir',
+                'full_bp_dir',
+                'local_path_to_wal_files'
+                ]
+        if use_backuper:
+            req_args.extend([
+                'postgresql_isntance_path',
+                'postgresql_username',
+                'postgresql_password'
+            ])
+        if use_cleaner:
+            req_args.extend([
+                'storage_time'
+            ])
+        if use_yandex:
+            req_args.extend([
+                'cloud_token',
+                'url'
+            ])
+        if use_aws:
+            req_args.extend([
+                'aws_bucket',
+                'aws_access_key_id',
+                'aws_secret_access_key',
+            ])
+        return req_args
+
+
+
+
 
     def _test(self):
-        file = open('./token')
-        self.args.set_cloud_token(file.read())
-        self.args.set_disk('C')
-        self.args.set_root_dir('Postgresql backups')
-        self.args.set_custom_dir('Отдел продаж')
-        self.args.set_full_bp_dir('Full')
-        self.args.set_local_path_to_wal_files('C:\\Postgresql backups\\pg_log_archive')
+
+        self.__args.set_disk('C')
+        self.__args.set_root_dir('Postgresql backups')
+        self.__args.set_custom_dir('Отдел продаж')
+        self.__args.set_full_bp_dir('Full')
+        self.__args.set_local_path_to_wal_files('C:\\Postgresql backups\\pg_log_archive')
+        file = open('./aws_access_key_id')
+        self.__args.set_aws_access_key_id(file.read())
+        file = open('./aws_secret_access_key')
+        self.__args.set_aws_secret_access_key(file.read())
+
+
 
         now = parser.parse("26.11.2022 00:00:00 +3")
         # Test.Delete before release
 
         storage_time = 1565100
         expire_date = now - datetime.timedelta(seconds=storage_time)
-        self.cleaner.clean_local(expire_date)
-        self.cleaner.clean_cloud()
+        self.__cleaner.clean_local(expire_date)
+        self.__cleaner.clean_cloud()
 
     def clean_backups(self):
-        storage_time = self.args.storage_time()
+        storage_time = self.__args.storage_time()
         if storage_time is not None and storage_time > 0:
             now = datetime.datetime.now(tzlocal.get_localzone())
             expire_date = now - datetime.timedelta(seconds=storage_time)
-            self.cleaner.clean_local(expire_date)
+            self.__cleaner.clean_local(expire_date)
 
-        self.cleaner.clean_cloud()
+        self.__cleaner.clean_cloud()
 
     def create_full_backup(self, write_to_log_file=True, raise_exception=False):
         try:
-            self.backaper.create_full_backup()
+            self.__backaper.create_full_backup()
             if write_to_log_file:
                 self.write_log('backup-', True, '')
         except Exception as e:
@@ -982,11 +1060,11 @@ class Manager:
             if raise_exception:
                 raise e
 
-    def upload_on_yandex_cloud(self, write_to_log_file=True, raise_exception=False):
+    def upload_on_cloud(self, write_to_log_file=True, raise_exception=False):
         try:
-            self.uploader.upload_on_yandex_cloud()
+            message = self.__uploader.upload_on_cloud()
             if write_to_log_file:
-                self.write_log('upload-', True, '')
+                self.write_log('upload-', True, str(message))
         except Exception as e:
             if write_to_log_file:
                 self.write_log('upload-', False, str(e))
@@ -995,14 +1073,14 @@ class Manager:
 
     def main(self):
         self.create_full_backup()
-        self.upload_on_yandex_cloud()
+        self.upload_on_cloud()
         self.clean_backups()
 
     def write_log(self, file_pref, success, text=''):
 
         default_path = './PostgreSQLBackuperLogs'
         try:
-            path = self.args.log_path()
+            path = self.__args.log_path()
             if path == '' or path is None:
                 path = default_path
         except:
@@ -1011,12 +1089,13 @@ class Manager:
         if not os.path.exists(path):
             os.makedirs(path)
 
-        label = self.args.label()
+        label = self.__args.label()
         result = "Success_" if success else 'FAIL_'
         path = f'{path}\\{file_pref}{result}{label}.txt'
         file = open(path, "w")
         file.write(text)
         file.close()
+
 
 
 # Press the green button in the gutter to run the script.
