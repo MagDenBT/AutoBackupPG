@@ -157,9 +157,9 @@ class Args(object):
     def __getitem__(self, item):
         return getattr(self, item)
 
-    def __init__(self, use_backuper, use_cleaner, use_yandex, use_aws, args=None, in_lower_case=True):
+    def __init__(self, use_backuper, use_cleaner, use_yandex, args=None, in_lower_case=True):
         self.set_params(args, in_lower_case)
-        self.check_params(use_backuper, use_cleaner, use_yandex, use_aws, )
+        self.check_params(use_backuper, use_cleaner, use_yandex,)
 
     def set_params(self, args=None, in_lower_case=True):
         if args is not None:
@@ -170,9 +170,9 @@ class Args(object):
         else:
             self.__set_default_params()
 
-    def check_params(self, use_backuper, use_cleaner, use_yandex, use_aws):
+    def check_params(self, use_backuper, use_cleaner, use_yandex):
         args = {}
-        req_arg = self.__get_args_for_check(use_backuper, use_cleaner, use_yandex, use_aws)
+        req_arg = self.__get_args_for_check(use_backuper, use_cleaner, use_yandex)
         for arg in req_arg:
             arg_mod = str.lower(arg)
             get_method = self[arg_mod]
@@ -188,7 +188,7 @@ class Args(object):
         if _error:
             raise Exception(message)
 
-    def __get_args_for_check(self, use_backuper, use_cleaner, use_yandex, use_aws):
+    def __get_args_for_check(self, use_backuper, use_cleaner, use_yandex):
         req_args = [
             'disk',
             'root_dir',
@@ -211,7 +211,7 @@ class Args(object):
                 'cloud_token',
                 'url'
             ])
-        if use_aws:
+        else:
             req_args.extend([
                 'aws_bucket',
                 'aws_access_key_id',
@@ -236,8 +236,9 @@ class Args(object):
         self.__postgresql_username = 'postgres'
         self.__postgresql_password = '1122'
 
-    def __generate_label(self, millisec=False):
-        if millisec:
+    @staticmethod
+    def _generate_label(use_millisec=False):
+        if use_millisec:
             time_stamp = datetime.datetime.utcnow().strftime('%Y_%m_%d____%H-%M-%S.%f')[:-3]
         else:
             time_stamp = datetime.datetime.now().strftime('%Y_%m_%d____%H-%M-%S')
@@ -345,7 +346,7 @@ class Args(object):
 
     def label(self):
         if self.__label is None or self.__label == '':
-            self.__label = self.__generate_label()
+            self.__label = self._generate_label()
         return self.__label
 
     def url(self):
@@ -1004,12 +1005,11 @@ class Manager:
     __aws_client = None
 
     def __init__(self, new_args=None, args_in_lower_case=False, use_backuper=True,
-                 use_cleaner=True, use_yandex=False, use_aws=True):
+                 use_cleaner=True, use_yandex=False):
 
-        if use_yandex and use_aws:
-            use_yandex = False
+
         try:
-            self.__args = Args(use_backuper, use_cleaner, use_yandex, use_aws, new_args, args_in_lower_case)
+            self.__args = Args(use_backuper, use_cleaner, use_yandex, new_args, args_in_lower_case)
         except Exception as e:
             self.write_log('backup-', False, str(e))
             raise e
@@ -1017,10 +1017,11 @@ class Manager:
         if use_backuper:
             self.__backuper = Backuper(self.__args)
 
-        if use_aws:
-            self.__connector = AWS_Connector(self.__args)
-        else:
+        if use_yandex:
             self.__connector = YandexConnector(self.__args)
+        else:
+            self.__connector = AWS_Connector(self.__args)
+
         if use_cleaner:
             self.__cleaner = Cleaner(self.__args)
 
@@ -1107,7 +1108,10 @@ class Manager:
         if not os.path.exists(path):
             os.makedirs(path)
 
-        label = self.__args.label()
+        if self.__args is None:
+            label = Args._generate_label(use_millisec=True)
+        else:
+            label = self.__args.label()
         result = "Success_" if success else 'FAIL_'
         path = f'{path}\\{file_pref}{result}{label}.txt'
         file = open(path, "w")

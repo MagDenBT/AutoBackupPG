@@ -29,7 +29,7 @@ def test():
 
 
 
-    m = Manager(new_args=args, use_cleaner=True, use_backuper=True, use_yandex=True, use_aws=False)
+    m = Manager(new_args=args, use_cleaner=True, use_backuper=True, use_yandex=True)
     m.create_full_backup(raise_exception=True)
     m.upload_on_cloud(raise_exception=True)
     storage_time = 1565100
