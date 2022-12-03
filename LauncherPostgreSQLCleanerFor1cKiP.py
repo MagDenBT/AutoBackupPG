@@ -55,6 +55,9 @@ class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
 
     def _real(self):
 
+
+
+
         # For debug
         # path = f'./logPath\\1111.json'
         # if not os.path.exists("./logPath"):
@@ -71,17 +74,16 @@ class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
 
         write_to_log_file = self.config['write_to_log_file']
         use_yandex = self.config['use_yandex']
-        manager = Manager(self.config.scenario_context, args_in_lower_case=True, use_cleaner=True,
-                          use_yandex=use_yandex)
+        manager = Manager(self.config.scenario_context, args_in_lower_case=True, use_cleaner=True, use_yandex=use_yandex)
 
         try:
-            global_logger.info(message="Starting upload to Cloud")
-            manager.upload_on_cloud(write_to_log_file, raise_exception=True)
-            global_logger.info(message="Бэкапы PostgreSQL успешно выгружены в облако")
+            global_logger.info(message="Starting the removal of outdated backups")
+            manager.clean_backups(write_to_log_file, raise_exception=True)
+            global_logger.info(message="Deleting outdated backups is a success")
         except Exception as e:
             error = str(e)
-            global_logger.error(message=f"Выгрузка бэкапов PostgreSQL в облако не удалась. Причина - {error}")
-            raise SACError("Выгрузка бэкапов PostgreSQL в облако не удалась", error)
+            global_logger.error(message=f"Deleting outdated backups is a failure. Reason - {error}")
+            raise SACError("Deleting outdated backups is a failure", error)
 
 
 # Позволяет запускать сценарий, если данный файл был запущен напрямую.

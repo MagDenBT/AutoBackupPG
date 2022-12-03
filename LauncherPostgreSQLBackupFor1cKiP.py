@@ -55,10 +55,6 @@ class LauncherPostgreSQLBackupFor1cKiP(BaseScenario):
 
     def _real(self):
 
-        global_logger.info(message="897979797979Starting backup")
-        manager = Manager(self.config.scenario_context, args_in_lower_case=True)
-
-
         # For debug
         # path = f'./logPath\\1111.json'
         # if not os.path.exists("./logPath"):
@@ -73,11 +69,14 @@ class LauncherPostgreSQLBackupFor1cKiP(BaseScenario):
         #         fp.write(f'{key} ---- {value}\n')
         # fp.close()
 
-        writetologfile = self.config['writetologfile']
+        write_to_log_file = self.config['write_to_log_file']
+        use_yandex = self.config['use_yandex']
+        manager = Manager(self.config.scenario_context, args_in_lower_case=True, use_backuper=True,
+                          use_yandex=use_yandex)
 
         try:
             global_logger.info(message="Starting backup")
-            manager.create_full_backup(writetologfile,True)
+            manager.create_full_backup(write_to_log_file, raise_exception=True)
             global_logger.info(message="Бэкап PostgreSQL сделан")
         except Exception as e:
             error = str(e)
