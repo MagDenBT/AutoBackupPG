@@ -10,9 +10,13 @@ external-values:
   - postgresql_password
   - cloud_token
   - write_to_log_file
+  - aws_access_key_id
+  - aws_secret_access_key
+  - aws_bucket
 default-values:
   time-limit: 36000
   temp_path: ""
   log_path: ""
   backuper: ""
+  use_yandex: False
   storage_time: 0
