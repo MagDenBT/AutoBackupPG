@@ -42,7 +42,7 @@ P.S. For the script to work on Linux, you need to slightly tweak the principle o
 
 
 В пакете 3 скрипта:
-PostgreSQLBackuper.py - Сам бэкапер, "удалятор" и ``синхрофазотрон`` синхронизатор с облаком Yandex и Yandex S3 ( AWS-like)
+PostgreSQLBackuper.py - Сам бэкапер, "удалятор" и ~~синхрофазотрон~~ синхронизатор с облаком Yandex и Yandex S3 ( AWS-like)
 LauncherPostgreSQLBackupFor1cKiP.py - лончер для создания бэкапов через 1с КИП. Центр администрирования
 LauncherPostgreSQLUploadToCloudFor1cKiP.py - лончер для выгрузки новых бэкапов в облако через 1с КИП. Центр администрирования
 
