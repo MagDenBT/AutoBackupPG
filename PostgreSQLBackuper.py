@@ -165,8 +165,11 @@ class Args(object):
         if args is not None:
             for key, value in args.items():
                 key_mod = str.lower(key) if in_lower_case else key
-                set_method = self[f'set_{key_mod}']
-                set_method(value)
+                try:
+                    set_method = self[f'set_{key_mod}']
+                    set_method(value)
+                except:
+                    continue
         else:
             self.__set_default_params()
 
