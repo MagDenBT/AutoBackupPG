@@ -366,61 +366,61 @@ class Args(object):
 
     # Setters
     def set_aws_access_key_id(self, val: str):
-        self.__aws_access_key_id = val
+        self.__aws_access_key_id = str(val)
 
     def set_aws_secret_access_key(self, val: str):
-        self.__aws_secret_access_key = val
+        self.__aws_secret_access_key = str(val)
 
     def set_aws_endpoint_url(self, val: str):
-        self.__aws_endpoint_url = val
+        self.__aws_endpoint_url = str(val)
 
     def set_disk(self, val: str):
-        self.__disk = val
+        self.__disk = str(val)
 
     def set_root_dir(self, val: str):
-        self.__root_dir = val
+        self.__root_dir = str(val)
 
     def set_custom_dir(self, val: str):
-        self.__custom_dir = val
+        self.__custom_dir = str(val)
 
     def set_full_bp_dir(self, val: str):
-        self.__full_bp_dir = val
+        self.__full_bp_dir = str(val)
 
     def set_local_path_to_wal_files(self, val: str):
-        self.__local_path_to_wal_files = val
+        self.__local_path_to_wal_files = str(val)
 
     def set_postgresql_isntance_path(self, val: str):
-        self.__postgresql_isntance_path = val
+        self.__postgresql_isntance_path = str(val)
 
     def set_postgresql_username(self, val: str):
-        self.__postgresql_username = val
+        self.__postgresql_username = str(val)
 
     def set_postgresql_password(self, val: str):
-        self.__postgresql_password = val
+        self.__postgresql_password = str(val)
 
     def set_cloud_token(self, val: str):
-        self.__cloud_token = val
+        self.__cloud_token = str(val)
 
     def set_temp_path(self, val: str):
-        self.__temp_path = val
+        self.__temp_path = str(val)
 
     def set_log_path(self, val: str):
-        self.__log_path = val
+        self.__log_path = str(val)
 
     def set_backuper(self, val: str):
-        self.__backuper = val
+        self.__backuper = str(val)
 
     def set_storage_time(self, val: int):
-        self.__storage_time = val
+        self.__storage_time = int(val)
 
     def set_url(self, val: str):
-        self.__url = val
+        self.__url = str(val)
 
     def set_aws_bucket(self, val: str):
-        self.__aws_bucket = val
+        self.__aws_bucket = str(val)
 
     def set_aws_chunk_size(self, val: int):
-        self.__aws_chunk_size = val
+        self.__aws_chunk_size = str(val)
 
     def aws_correct_folder_name(self, _dir: str):
         valid_characters = '0123456789qwertyuiopasdfghjklzxcvbnmйцукенгшщзхъфывапролджэячсмитьбюё'
