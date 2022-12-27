@@ -420,7 +420,7 @@ class Args(object):
         self.__aws_bucket = str(val)
 
     def set_aws_chunk_size(self, val: int):
-        self.__aws_chunk_size = str(val)
+        self.__aws_chunk_size = int(val)
 
     def aws_correct_folder_name(self, _dir: str):
         valid_characters = '0123456789qwertyuiopasdfghjklzxcvbnmйцукенгшщзхъфывапролджэячсмитьбюё'
