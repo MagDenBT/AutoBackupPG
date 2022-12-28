@@ -1050,7 +1050,7 @@ class Manager:
 
     def clean_backups(self, write_to_log_file=True, raise_exception=False):
         storage_time = self.__args.storage_time()
-        if storage_time is not None and storage_time < 1:
+        if storage_time is None or storage_time < 1:
             message = 'Failed to delete outdated backups - the storage_time parameter is not set or it is less than 1'
 
             if write_to_log_file:
