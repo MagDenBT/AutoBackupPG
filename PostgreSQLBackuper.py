@@ -1135,6 +1135,7 @@ class Cleaner:
             "YEKT": 5 * 3600,
             "Z": 0 * 3600,
         }
+
     def _clean_local(self, expire_date):
         full_bck = self.__full_bck_to_remove(expire_date)
         for obj in full_bck:
@@ -1156,7 +1157,7 @@ class Cleaner:
                 else:
                     current_mask = second_mask
 
-                oldest_label = file_name.replace(current_mask, '')
+                oldest_label = file_name.split(current_mask)[0]
 
         if oldest_label is not None:
             inc_bck = self.__inc_bck_to_remove(self.args.local_path_to_wal_files(), oldest_label)
