@@ -240,6 +240,7 @@ class Args(object):
                 'aws_bucket',
                 'aws_access_key_id',
                 'aws_secret_access_key',
+                'aws_endpoint_url',
             ])
         return req_args
 
@@ -286,9 +287,6 @@ class Args(object):
         return self.__aws_secret_access_key
 
     def aws_endpoint_url(self):
-        if self.__aws_endpoint_url is None or self.__aws_endpoint_url == '':
-            var = 'https://storage.yandexcloud.net'
-            self.__aws_endpoint_url = var
         return self.__aws_endpoint_url
 
     def cloud_token(self):
@@ -384,6 +382,9 @@ class Args(object):
         if not for_aws:
             path = f'/{path}'
         return path
+
+
+
 
     # Setters
     def set_aws_access_key_id(self, val: str):
