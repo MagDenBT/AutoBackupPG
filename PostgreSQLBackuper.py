@@ -827,7 +827,7 @@ class AWS_Connector:
             objects = []
             for bck in extra_bck:
                 objects.append({'Key': bck})
-            self.aws_client.delete_objects(Bucket='backuptest', Delete={'Objects': objects})
+            self.aws_client.delete_objects(Bucket=self.args.aws_bucket(), Delete={'Objects': objects})
             # self.__delete_empty_dirs_on_aws()
 
     def __get_extra_bck_on_cloud(self):
