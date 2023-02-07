@@ -7,8 +7,12 @@
       <sourceFolder url="file://$MODULE_DIR$/python-3.10/Lib" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/python-3.10/Lib/site-packages" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/python" />
+      <excludeFolder url="file://$MODULE_DIR$/venv" />
+      <excludeFolder url="file://$MODULE_DIR$/venv2" />
+      <excludeFolder url="file://$MODULE_DIR$/venv3" />
+      <excludeFolder url="file://$MODULE_DIR$/venv4" />
     </content>
-    <orderEntry type="inheritedJdk" />
+    <orderEntry type="jdk" jdkName="Python 3.8 (AutoBackupPG) (2)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
