@@ -117,17 +117,20 @@ class Func:
     @staticmethod
     def get_objects_on_aws(s3_client, bucket, verification_path, only_files=True, with_hash=True):
         result = []
-        for obj in s3_client.list_objects(Bucket=bucket)['Contents']:
-            resource_name = obj['Key']
-            if resource_name.endswith('/') and only_files:
-                continue
-            if resource_name.startswith(verification_path):
-                if with_hash:
-                    md5 = Func.get_md5_aws(s3_client, bucket, resource_name)
-                    item = {'Hash': md5, 'Path': resource_name}
-                else:
-                    item = resource_name
-                result.append(item)
+        try:
+            for obj in s3_client.list_objects(Bucket=bucket)['Contents']:
+                resource_name = obj['Key']
+                if resource_name.endswith('/') and only_files:
+                    continue
+                if resource_name.startswith(verification_path):
+                    if with_hash:
+                        md5 = Func.get_md5_aws(s3_client, bucket, resource_name)
+                        item = {'Hash': md5, 'Path': resource_name}
+                    else:
+                        item = resource_name
+                    result.append(item)
+        except Exception:
+            a = 1
         return result
 
     @staticmethod
