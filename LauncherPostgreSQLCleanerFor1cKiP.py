@@ -4,6 +4,7 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 # Этот модуль требуется импортировать в начале каждого скрипта.
 import json
+import traceback
 
 from lib.common import bootstrap
 # Экспорт базового класса для сценария. Он отвечает за настройку логгирования,
@@ -82,7 +83,7 @@ class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
             global_logger.info(message="Deleting outdated backups is a success")
         except Exception as e:
             error = str(e)
-            global_logger.error(message=f"Deleting outdated backups is a failure. Reason - {error}")
+            global_logger.error(message=f"Deleting outdated backups is a failure. Reason - {error}. {traceback.format_exc()}'")
             raise SACError("Deleting outdated backups is a failure", error)
 
 

@@ -4,6 +4,7 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 # Этот модуль требуется импортировать в начале каждого скрипта.
 import json
+import traceback
 
 from lib.common import bootstrap
 # Экспорт базового класса для сценария. Он отвечает за настройку логгирования,
@@ -80,7 +81,7 @@ class LauncherPostgreSQLBackupFor1cKiP(BaseScenario):
             global_logger.info(message="Бэкап PostgreSQL сделан")
         except Exception as e:
             error = str(e)
-            global_logger.error(message=f"Не удалось создать полный бэкап PostgreSQL.Причина - {error}")
+            global_logger.error(message=f"Не удалось создать полный бэкап PostgreSQL.Причина - {error}. {traceback.format_exc()}'")
             raise SACError("Не удалось создать полный бэкап PostgreSQL",error)
 
 
