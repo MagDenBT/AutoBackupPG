@@ -332,7 +332,10 @@ class Args(object):
 
     def backuper(self):
         if self.__backuper is None or self.__backuper == '':
-            self.__backuper = self.postgresql_isntance_path() + 'bin\\pg_basebackup.exe'
+            path = self.postgresql_isntance_path()
+            if not path.endswith('\\'):
+                path = path + '\\'
+            self.__backuper = path + 'bin\\pg_basebackup.exe'
         return self.__backuper
 
     def temp_path(self):
@@ -486,6 +489,10 @@ class Backuper:
         my_env["PGPASSWORD"] = self.args.postgresql_password()
 
         self.__clear_temp_dir_full_backup()
+
+        if not os.path.exists(self.args.backuper()):
+            raise Exception(
+                f'Файл {self.args.backuper()} не найден. Проверьте правльность пути до кластера(инстанса) сервера PosgtrSQL или бэкапера(если он задан). Текущий путь до кластера в скрипте - {self.args.postgresql_isntance_path()}')
 
         process = subprocess.run(
             [self.args.backuper(),
