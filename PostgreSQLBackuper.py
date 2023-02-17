@@ -456,14 +456,14 @@ class Args(object):
         return _dir
 
 
-class Backuper:
+class BaseBackuper:
 
     args = None
 
     def __init__(self, args):
         self.args = args
 
-    def __file_operations_full_backup(self):
+    def __move_to_permanent_dir(self):
         label = self.args.label()
         files = Func.get_objects_list_on_disk(self.args.temp_path())
         if not os.path.exists(f'{self.args.path_to_full_backup_local()}\\{label}'):
@@ -474,21 +474,21 @@ class Backuper:
             shutil.move(file,
                         f'{self.args.path_to_full_backup_local()}\\{label}\\{label}__{os.path.basename(file)}')
 
-    def __clear_temp_dir_full_backup(self):
+    def __clear_temp_dir(self):
         # clear the directory of any files
         if os.path.exists(self.args.temp_path()):
             for path in os.listdir(self.args.temp_path()):
                 if os.path.exists(f'{self.args.temp_path()}\\{path}'):
                     os.remove(f'{self.args.temp_path()}\\{path}')
 
-    def _create_full_backup(self):
+    def _create_backup(self):
 
         label = self.args.label()
 
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self.args.postgresql_password()
 
-        self.__clear_temp_dir_full_backup()
+        self.__clear_temp_dir()
 
         if not os.path.exists(self.args.backuper()):
             raise Exception(
@@ -509,10 +509,12 @@ class Backuper:
         )
         text_error = process.stderr.decode()
         if text_error == "":
-            self.__file_operations_full_backup()
-            self.__clear_temp_dir_full_backup()
+            self.__move_to_permanent_dir()
+            self.__clear_temp_dir()
         else:
             raise Exception(text_error)
+
+
 
 
 class YandexConnector:
@@ -1337,7 +1339,7 @@ class Manager:
             raise e
 
         if use_backuper:
-            self.__backuper = Backuper(self.__args)
+            self.__backuper = BaseBackuper(self.__args)
 
         if use_yandex:
             self.__connector = YandexConnector(self.__args)
@@ -1390,9 +1392,9 @@ class Manager:
             if raise_exception:
                 raise e
 
-    def create_full_backup(self, write_to_log_file=True, raise_exception=False):
+    def create_backup(self, write_to_log_file=True, raise_exception=False):
         try:
-            self.__backuper._create_full_backup()
+            self.__backuper._create_backup()
             if write_to_log_file:
                 self.write_log('backup-', True, '')
         except Exception as e:
@@ -1413,7 +1415,7 @@ class Manager:
                 raise e
 
     def main(self):
-        self.create_full_backup()
+        self.create_backup()
         self.upload_on_cloud()
         self.clean_backups()
 

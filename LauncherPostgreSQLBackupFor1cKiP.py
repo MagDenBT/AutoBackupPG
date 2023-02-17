@@ -77,7 +77,7 @@ class LauncherPostgreSQLBackupFor1cKiP(BaseScenario):
 
         try:
             global_logger.info(message="Starting backup")
-            manager.create_full_backup(write_to_log_file, raise_exception=True)
+            manager.create_backup(write_to_log_file, raise_exception=True)
             global_logger.info(message="Бэкап PostgreSQL сделан")
         except Exception as e:
             error = str(e)
