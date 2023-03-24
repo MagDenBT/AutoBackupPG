@@ -29,10 +29,10 @@ import requests as requests
 # CLoud settings
 # from lib.common.logger import global_logger
 
-from PostgreSQLBackuper import Manager
+from PGSQL_Backuper import Manager
 
 
-class LauncherPostgreSQLBackupFor1cKiP(BaseScenario):
+class PGSQL_SyncrFor1cKiP(BaseScenario):
 
     def _validate_specific_data(self):
         pass
@@ -71,22 +71,19 @@ class LauncherPostgreSQLBackupFor1cKiP(BaseScenario):
         # fp.close()
 
         write_to_log_file = self.config['write_to_log_file']
-        use_yandex = self.config['use_yandex']
-        manager = Manager(self.config.scenario_context, args_in_lower_case=True, use_backuper=True,
-                          use_yandex=use_yandex)
+        manager = Manager(new_args=self.config.scenario_context, clean_backups=True)
 
         try:
-            global_logger.info(message="Starting backup")
-            manager.create_backup(write_to_log_file, raise_exception=True)
-            global_logger.info(message="Бэкап PostgreSQL сделан")
+            global_logger.info(message="Начало удаления устаревших бэкапов")
+            manager.clean_backups(write_to_log_file, raise_exception=True)
+            global_logger.info(message="Удаление устаревших бэкапов успешно завершено")
         except Exception as e:
             error = str(e)
-            global_logger.error(message=f"Не удалось создать полный бэкап PostgreSQL.Причина - {error}. {traceback.format_exc()}'")
-            raise SACError("Не удалось создать полный бэкап PostgreSQL",error)
-
-
+            global_logger.error(
+                message=f"Удаление устаревших бэкапов не удалось.Причина - {error}. {traceback.format_exc()}'")
+            raise SACError(24, f'Удаление устаревших бэкапов не удалось! - {error}')
 
 
 # Позволяет запускать сценарий, если данный файл был запущен напрямую.
 if __name__ == "__main__":
-    LauncherPostgreSQLBackupFor1cKiP.main()
+    PGSQL_SyncrFor1cKiP.main()

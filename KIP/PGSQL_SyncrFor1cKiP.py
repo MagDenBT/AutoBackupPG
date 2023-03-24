@@ -29,10 +29,10 @@ import requests as requests
 # CLoud settings
 # from lib.common.logger import global_logger
 
-from PostgreSQLBackuper import Manager
+from PGSQL_Backuper import Manager
 
 
-class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
+class PGSQL_SyncrFor1cKiP(BaseScenario):
 
     def _validate_specific_data(self):
         pass
@@ -71,20 +71,19 @@ class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
         # fp.close()
 
         write_to_log_file = self.config['write_to_log_file']
-        use_yandex = self.config['use_yandex']
-        manager = Manager(self.config.scenario_context, args_in_lower_case=True, use_cleaner=True,
-                          use_yandex=use_yandex)
+        manager = Manager(new_args=self.config.scenario_context, sync_backups=True)
 
         try:
-            global_logger.info(message="Starting upload to Cloud")
-            manager.upload_on_cloud(write_to_log_file, raise_exception=True)
+            global_logger.info(message="Синхронизация с облаком запущена")
+            manager.sync_with_cloud(write_to_log_file, raise_exception=True)
             global_logger.info(message="Бэкапы PostgreSQL успешно выгружены в облако")
         except Exception as e:
             error = str(e)
             global_logger.error(message=f"Выгрузка бэкапов PostgreSQL в облако не удалась. Причина - {error}. {traceback.format_exc()}'")
-            raise SACError("Выгрузка бэкапов PostgreSQL в облако не удалась", error)
+            raise SACError(24, f'Выгрузка бэкапов PostgreSQL в облако не удалась! - {error}')
+
 
 
 # Позволяет запускать сценарий, если данный файл был запущен напрямую.
 if __name__ == "__main__":
-    LauncherPostgreSQLUploadToCloudFor1cKiP.main()
+    PGSQL_SyncrFor1cKiP.main()

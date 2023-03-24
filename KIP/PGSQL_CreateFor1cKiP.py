@@ -29,10 +29,10 @@ import requests as requests
 # CLoud settings
 # from lib.common.logger import global_logger
 
-from PostgreSQLBackuper import Manager
+from PGSQL_Backuper import Manager
 
 
-class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
+class PGSQL_CreateFor1cKiP(BaseScenario):
 
     def _validate_specific_data(self):
         pass
@@ -56,9 +56,6 @@ class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
 
     def _real(self):
 
-
-
-
         # For debug
         # path = f'./logPath\\1111.json'
         # if not os.path.exists("./logPath"):
@@ -74,19 +71,30 @@ class LauncherPostgreSQLUploadToCloudFor1cKiP(BaseScenario):
         # fp.close()
 
         write_to_log_file = self.config['write_to_log_file']
-        use_yandex = self.config['use_yandex']
-        manager = Manager(self.config.scenario_context, args_in_lower_case=True, use_cleaner=True, use_yandex=use_yandex)
+        manager = Manager(new_args=self.config.scenario_context, create_backup=True)
+        global_logger.info(message="Запущен процесс создания бэкапа PostgreSQL")
+        dump_error = None
+        for name, backuper in manager.backupers().items():
+            try:
+                backuper._create_backup()
+                global_logger.info(message=f'{name}- успех!')
+                if write_to_log_file:
+                    manager.write_log(f'{name}-', True, '')
+            except Exception as e:
+                if "dump" in name:
+                    dump_error = str(e)
+                global_logger.warning(message=f'{name}- ОШИБКА! - {str(e)}. {traceback.format_exc()}')
+                if write_to_log_file:
+                    manager.write_log(f'{name}-', False, str(e))
 
-        try:
-            global_logger.info(message="Starting the removal of outdated backups")
-            manager.clean_backups(write_to_log_file, raise_exception=True)
-            global_logger.info(message="Deleting outdated backups is a success")
-        except Exception as e:
-            error = str(e)
-            global_logger.error(message=f"Deleting outdated backups is a failure. Reason - {error}. {traceback.format_exc()}'")
-            raise SACError("Deleting outdated backups is a failure", error)
+        if dump_error is not None:
+            raise SACError(24, f'Дамп не создан! - {dump_error}')
+
+
+
+
 
 
 # Позволяет запускать сценарий, если данный файл был запущен напрямую.
 if __name__ == "__main__":
-    LauncherPostgreSQLUploadToCloudFor1cKiP.main()
+    PGSQL_CreateFor1cKiP.main()
