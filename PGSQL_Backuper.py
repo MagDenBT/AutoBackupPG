@@ -154,6 +154,10 @@ class Func:
             result.update({file: Func.get_md5(file, chunk_size)})
         return result
 
+    @staticmethod
+    def contain_files(path):
+        files = Func.get_objects_list_on_disk(path, only_files=True)
+        return len(files > 0)
 
 class Args(object):
 
@@ -516,10 +520,9 @@ class BaseBackuper:
             comm_args,
             stderr=subprocess.PIPE,
             env=my_env,
-            text=True,
         )
 
-        text_error = process.stderr
+        text_error = process.stderr.decode(errors='replace')
         if text_error == "":
             if use_ext_archiver:
                 self.__archive_with_external_tool()
@@ -536,9 +539,11 @@ class BaseBackuper:
         my_env["PGPASSWORD"] = self.args.postgresql_password()
 
         try:
-            subprocess.check_output(comm_args, stderr=subprocess.PIPE, env=my_env, text=True, shell=True)
+            subprocess.check_output(comm_args, stderr=subprocess.PIPE, env=my_env, shell=True)
+        except subprocess.CalledProcessError as e:
+            raise Exception(e.stderr.decode(errors='replace'))
         except Exception as e:
-            raise Exception(e.stderr)
+            raise e
 
     def __move_to_permanent_dir(self, create_subdir=True):
         label = self.args.label()
@@ -594,12 +599,13 @@ class DumpBackuper:
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self.args.postgresql_password()
         try:
-           output = subprocess.check_output(comm_args, stderr=subprocess.STDOUT, env=my_env, text=True, shell=True)
+           output = subprocess.check_output(comm_args, stderr=subprocess.STDOUT, env=my_env, shell=True)
         except subprocess.CalledProcessError as e:
-            raise Exception(e.output)
+            raise Exception(e.output.decode(errors='replace'))
         except Exception as e:
             raise e
 
+        output = output.decode(errors='replace')
         pg_error = output.splitlines()[0] if len(output.splitlines()) > 0 else ''
         if pg_error != '':
             raise Exception(pg_error)
@@ -626,13 +632,17 @@ class AWS_Connector:
         message = Func.bucket_exists_and_accessible(self.aws_client, bucket)
         if message is not None:
             raise Exception(message)
-        local_cloud_paths = {self.args.path_to_dump_local(): self.args.path_to_dump_cloud(for_aws=True)}
+
+        if Func.contain_files(self.args.path_to_dump_local()):
+            local_cloud_paths = {self.args.path_to_dump_local(): self.args.path_to_dump_cloud(for_aws=True)}
         if self.args.handle_full_bcks():
-            local_cloud_paths.update(
-                {self.args.full_path_to_full_backup_local(): self.args.path_to_full_backup_cloud(for_aws=True)})
+            if Func.contain_files(self.args.full_path_to_full_backup_local()):
+                local_cloud_paths.update(
+                    {self.args.full_path_to_full_backup_local(): self.args.path_to_full_backup_cloud(for_aws=True)})
         if self.args.handle_wal_files():
-            local_cloud_paths.update(
-                {self.args.local_path_to_wal_files(): self.args.path_to_incr_backup_cloud(for_aws=True)})
+            if Func.contain_files(self.args.local_path_to_wal_files()):
+                local_cloud_paths.update(
+                    {self.args.local_path_to_wal_files(): self.args.path_to_incr_backup_cloud(for_aws=True)})
 
         with_hash = self.args.with_hash()
         all_cloud_backups = Func.get_objects_on_aws(self.aws_client, bucket, '', with_hash=with_hash)
@@ -641,8 +651,46 @@ class AWS_Connector:
                 if cloud_backup.startswith(cloud_path):
                     self.cloud_backups.append(cloud_backup)
 
-        self._clean_cloud(local_cloud_paths, with_hash)
+        corrupt_files = self.get_corrupt_files(local_cloud_paths)
+        if len(corrupt_files) == 0:
+            self._clean_cloud(local_cloud_paths, with_hash)
         self._upload_to_cloud(local_cloud_paths, with_hash)
+        if len(corrupt_files) > 0:
+            raise Exception(
+                f'Traces of a ransomware VIRUS may have been found. The following files have an unknown extension -{corrupt_files}')
+
+    def get_corrupt_files(self, local_cloud_paths:{}):
+        loca_files = []
+        for local_path, cloud_path in local_cloud_paths.items():
+            loca_files.extend(Func.get_objects_list_on_disk(local_path, only_files=True))
+        corrupt_files = []
+        for file in loca_files:
+            if not self.check_extension(file):
+                corrupt_files.append(file)
+        return corrupt_files
+
+    def check_extension(self, path: str):
+        arr = os.path.splitext(path)
+        exten = arr[len(arr) - 1]
+        if exten != '':
+            try:
+                self.get_valid_extensions().remove(exten)
+                result = True
+            except ValueError:
+                result = False
+        elif path.endswith('backup_manifest'):
+            result = True
+        else:
+            try:
+                numb = int('0x' + os.path.basename(path), base=16)
+                result = True
+            except ValueError:
+                result = False
+
+        return result
+
+    def get_valid_extensions(self):
+        return ['gz', 'xz', 'backup', 'dump']
 
     def _upload_to_cloud(self, local_cloud_paths: {}, with_hash):
         to_upload = {}
