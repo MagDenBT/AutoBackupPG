@@ -651,7 +651,7 @@ class AWS_Connector:
                 if cloud_backup.startswith(cloud_path):
                     self.cloud_backups.append(cloud_backup)
 
-        corrupt_files = self.get_corrupt_files(local_cloud_paths)
+        corrupt_files = self.__get_corrupt_files(local_cloud_paths)
         if len(corrupt_files) == 0:
             self._clean_cloud(local_cloud_paths, with_hash)
         self._upload_to_cloud(local_cloud_paths, with_hash)
@@ -659,37 +659,29 @@ class AWS_Connector:
             raise Exception(
                 f'Traces of a ransomware VIRUS may have been found. The following files have an unknown extension -{corrupt_files}')
 
-    def get_corrupt_files(self, local_cloud_paths:{}):
+    def __get_corrupt_files(self, local_cloud_paths:{}):
         loca_files = []
         for local_path, cloud_path in local_cloud_paths.items():
             loca_files.extend(Func.get_objects_list_on_disk(local_path, only_files=True))
         corrupt_files = []
         for file in loca_files:
-            if not self.check_extension(file):
+            if not self.__check_extension(file):
                 corrupt_files.append(file)
         return corrupt_files
 
-    def check_extension(self, path: str):
+    def __check_extension(self, path: str):
         arr = os.path.splitext(path)
         exten = arr[len(arr) - 1]
-        if exten != '':
-            try:
-                self.get_valid_extensions().remove(exten)
-                result = True
-            except ValueError:
-                result = False
-        elif path.endswith('backup_manifest'):
-            result = True
-        else:
+        if exten != '' and exten not in self.__get_valid_extensions():
+                return False
+        elif not path.endswith('backup_manifest'):
             try:
                 numb = int('0x' + os.path.basename(path), base=16)
-                result = True
             except ValueError:
-                result = False
+                return False
+        return True
 
-        return result
-
-    def get_valid_extensions(self):
+    def __get_valid_extensions(self):
         return ['gz', 'xz', 'backup', 'dump']
 
     def _upload_to_cloud(self, local_cloud_paths: {}, with_hash):
