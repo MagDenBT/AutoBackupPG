@@ -159,12 +159,20 @@ class Func:
         files = Func.get_objects_list_on_disk(path, only_files=True)
         return len(files > 0)
 
+    @staticmethod
+    def clear_dir(path):
+        # clear the directory of any files
+        if os.path.exists(path):
+            for _obj in os.listdir(path):
+                if os.path.exists(f'{path}\\{_obj}'):
+                    os.remove(f'{path}\\{_obj}')
+
 class Args(object):
 
     __path_to_backups: str = None
     __custom_dir: str = None
     __database_name: str = None
-
+    __use_temp_dump: bool = None
     __local_path_to_wal_files: str = None
     __handle_full_bcks: bool = None
     __pg_basebackup: str = None
@@ -179,8 +187,6 @@ class Args(object):
     __temp_path: str = None
     __storage_time: int = None
     __log_path: str = None
-
-
 
     __aws_access_key_id: str = None
     __aws_secret_access_key: str = None
@@ -259,7 +265,6 @@ class Args(object):
             time_stamp = datetime.datetime.now().strftime('%Y_%m_%d____%H-%M-%S')
 
         return time_stamp + '_' + str(random.randint(1, 100))
-
 
     def with_hash(self):
         return self.__with_hash
@@ -413,6 +418,9 @@ class Args(object):
     def use_simple_way_read_bck_date(self):
         return self.__use_simple_way_read_bck_date
 
+    def use_temp_dump(self):
+        return self.__use_temp_dump
+
     # Setters
     def set_aws_access_key_id(self, val: str):
         self.__aws_access_key_id = str(val)
@@ -472,8 +480,11 @@ class Args(object):
     def set_pg_port(self, val: str):
         self.__pg_port = str(val)
 
-    def set_use_simple_way_read_bck_date(self):
-        return self.__use_simple_way_read_bck_date
+    def set_use_simple_way_read_bck_date(self, val: bool):
+        self.__use_simple_way_read_bck_date = val
+
+    def set_use_temp_dump(self, val: bool):
+        self.__use_temp_dump = val
 
     def aws_correct_folder_name(self, _dir: str):
         valid_characters = '0123456789qwertyuiopasdfghjklzxcvbnmйцукенгшщзхъфывапролджэячсмитьбюё'
@@ -489,7 +500,7 @@ class BaseBackuper:
         self.args = args
 
     def _create_backup(self):
-        self.__clear_temp_dir()
+        Func.clear_dir(self.args.temp_path())
 
         if not os.path.exists(self.args.pg_basebackup()):
             raise Exception(
@@ -528,18 +539,16 @@ class BaseBackuper:
                 self.__archive_with_external_tool()
             else:
                 self.__move_to_permanent_dir()
-                self.__clear_temp_dir()
+                Func.clear_dir(self.args.temp_path())
         else:
             raise Exception(text_error)
 
     def __archive_with_external_tool(self):
         label = self.args.label()
         comm_args = f'"{self.args.path_to_7zip()}\\7za.exe" a -ttar -so -sdel -an "{self.args.temp_path()}\\"* | "{self.args.path_to_7zip()}\\7za.exe" a -si "{self.args.full_path_to_full_backup_local()}\\{label}__base.txz"'
-        my_env = os.environ.copy()
-        my_env["PGPASSWORD"] = self.args.postgresql_password()
 
         try:
-            subprocess.check_output(comm_args, stderr=subprocess.PIPE, env=my_env, shell=True)
+            subprocess.check_output(comm_args, stderr=subprocess.PIPE, shell=True)
         except subprocess.CalledProcessError as e:
             raise Exception(e.stderr.decode(errors='replace'))
         except Exception as e:
@@ -558,13 +567,6 @@ class BaseBackuper:
             shutil.move(file,
                         f'{target_dir}\\{label}__{os.path.basename(file)}')
 
-    def __clear_temp_dir(self):
-        # clear the directory of any files
-        if os.path.exists(self.args.temp_path()):
-            for path in os.listdir(self.args.temp_path()):
-                if os.path.exists(f'{self.args.temp_path()}\\{path}'):
-                    os.remove(f'{self.args.temp_path()}\\{path}')
-
 
 class DumpBackuper:
     args = None
@@ -582,12 +584,16 @@ class DumpBackuper:
         dump_full_path = f'{self.args.path_to_dump_local()}\\{dump_name}'
         if not os.path.exists(self.args.path_to_dump_local()):
             os.makedirs(self.args.path_to_dump_local())
+        if self.args.use_temp_dump():
+            self.__create_through_ROM(dump_full_path)
+        else:
+            self.__create_through_stdout(dump_full_path)
+
+    def __create_through_stdout(self, dump_full_path):
         port_arg = ''
         if self.args.pg_port() is not None and self.args.pg_port() != '':
             port_arg = f' -p {self.args.pg_port()}'
-
         comm_args = f'"{self.args.pg_dump()}"{port_arg} -U {self.args.postgresql_username()} -Fc {self.args.database_name()}'
-
         if self.args.archive_dump():
             arch = f'{self.args.path_to_7zip()}\\7za.exe'
             if not os.path.exists(arch):
@@ -595,22 +601,67 @@ class DumpBackuper:
             comm_args = comm_args + f' | "{arch}" a -si "{dump_full_path}.xz"'
         else:
             comm_args += f' > "{dump_full_path}"'
-
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self.args.postgresql_password()
         try:
-           output = subprocess.check_output(comm_args, stderr=subprocess.STDOUT, env=my_env, shell=True)
+            output = subprocess.check_output(comm_args, stderr=subprocess.STDOUT, env=my_env, shell=True)
         except subprocess.CalledProcessError as e:
             raise Exception(e.output.decode(errors='replace'))
         except Exception as e:
             raise e
-
         output = output.decode(errors='replace')
         pg_error = output.splitlines()[0] if len(output.splitlines()) > 0 else ''
         if pg_error != '':
             raise Exception(pg_error)
 
+    def __create_through_ROM(self, finish_dump_path):
+        arch = f'{self.args.path_to_7zip()}\\7za.exe'
+        if self.args.archive_dump():
+            if not os.path.exists(arch):
+                raise Exception(f'{arch} - архиватор не найден')
+            if not os.path.exists(self.args.temp_path()):
+                os.makedirs(self.args.temp_path())
+            dump_full_path = f'{self.args.temp_path()}\\{os.path.basename(finish_dump_path)}'
+        else:
+            dump_full_path = finish_dump_path
 
+        comm_args = [self.args.pg_dump(),
+                     '-U', self.args.postgresql_username(),
+                     '-Fc',
+                     '-f', dump_full_path,
+                     self.args.database_name()
+                     ]
+        if self.args.pg_port() is not None and self.args.pg_port() != '':
+            comm_args.insert(1, '-p')
+            comm_args.insert(2, self.args.pg_port())
+
+        my_env = os.environ.copy()
+        my_env["PGPASSWORD"] = self.args.postgresql_password()
+        process = subprocess.run(
+            comm_args,
+            stderr=subprocess.PIPE,
+            env=my_env,
+        )
+
+        text_error = process.stderr.decode(errors='replace')
+        if text_error == "":
+            if self.args.archive_dump():
+                self.__archive_with_external_tool(arch, dump_full_path, finish_dump_path)
+        else:
+            raise Exception(text_error)
+
+
+
+    def __archive_with_external_tool(self, arch_path, source, target):
+        comm_args = f'"{arch_path}" a -sdel "{target}.xz" "{source}"'
+        try:
+            subprocess.check_output(comm_args, stderr=subprocess.PIPE, shell=True)
+        except subprocess.CalledProcessError as e:
+            os.remove(source)
+            raise Exception(e.stderr.decode(errors='replace'))
+        except Exception as e:
+            os.remove(source)
+            raise e
 
 class AWS_Connector:
     aws_client = None
