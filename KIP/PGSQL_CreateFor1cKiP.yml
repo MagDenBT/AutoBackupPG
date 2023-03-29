@@ -13,3 +13,4 @@ default-values:
   write_to_log_file: False
   pg_basebackup: ""
   pg_port: ""
+  use_temp_dump: True
