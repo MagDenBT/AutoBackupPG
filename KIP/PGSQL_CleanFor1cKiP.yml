@@ -9,6 +9,6 @@ default-values:
   handle_full_bcks: True
   write_to_log_file: False
   use_simple_way_read_bck_date: True
-  use_temp_dump: False
+  use_temp_dump: True
 
 

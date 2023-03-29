@@ -157,7 +157,7 @@ class Func:
     @staticmethod
     def contain_files(path):
         files = Func.get_objects_list_on_disk(path, only_files=True)
-        return len(files > 0)
+        return len(files) > 0
 
     @staticmethod
     def clear_dir(path):
@@ -166,6 +166,7 @@ class Func:
             for _obj in os.listdir(path):
                 if os.path.exists(f'{path}\\{_obj}'):
                     os.remove(f'{path}\\{_obj}')
+
 
 class Args(object):
 
@@ -584,6 +585,7 @@ class DumpBackuper:
         dump_full_path = f'{self.args.path_to_dump_local()}\\{dump_name}'
         if not os.path.exists(self.args.path_to_dump_local()):
             os.makedirs(self.args.path_to_dump_local())
+
         if self.args.use_temp_dump():
             self.__create_through_ROM(dump_full_path)
         else:
@@ -662,6 +664,7 @@ class DumpBackuper:
         except Exception as e:
             os.remove(source)
             raise e
+
 
 class AWS_Connector:
     aws_client = None
