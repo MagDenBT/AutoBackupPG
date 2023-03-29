@@ -21,7 +21,7 @@ import tzlocal
 class Func:
 
     @staticmethod
-    def get_objects_list_on_disk(path, mask=None, second_mask=None, only_files=True):
+    def get_objects_list_on_disk(path, mask=None, or_second_mask=None, only_files=True):
         objects_list = []
         for root, dirs, files in os.walk(path):
             total_files = len(files)
@@ -34,13 +34,13 @@ class Func:
                         objects_list.append(os.path.join(root, filename))
                         i = total_files + 1
                     else:
-                        if second_mask is not None:
+                        if or_second_mask is not None:
                             if i == total_files:
                                 if len(temp) > 0:
                                     for val in temp:
-                                        if second_mask in val:
+                                        if or_second_mask in val:
                                             objects_list.append(os.path.join(root, val))
-                                elif second_mask in filename:
+                                elif or_second_mask in filename:
                                     objects_list.append(os.path.join(root, filename))
                             else:
                                 temp.append(filename)
@@ -1180,7 +1180,7 @@ class LocalCleaner:
         mask = '_backup_manifest'
         second_mask = '_base.'
         only_bcks = Func.get_objects_list_on_disk(self.args.full_path_to_full_backup_local(), mask=mask,
-                                                  second_mask=second_mask, only_files=True)
+                                                  or_second_mask=second_mask, only_files=True)
         result = {}
         for file in only_bcks:
             file_name = os.path.basename(file)
@@ -1239,7 +1239,7 @@ class LocalCleaner:
         mask = '_backup_manifest'
         second_mask = '_base.'
         full_bck = Func.get_objects_list_on_disk(self.args.full_path_to_full_backup_local(), mask=mask,
-                                                 second_mask=second_mask, only_files=True)
+                                                 or_second_mask=second_mask, only_files=True)
         result = []
 
         for file in full_bck:
@@ -1337,7 +1337,7 @@ class LocalCleaner:
         mask = '_backup_manifest'
         second_mask = '_base.'
         full_bck = Func.get_objects_list_on_disk(self.args.full_path_to_full_backup_local(), mask=mask,
-                                                 second_mask=second_mask, only_files=True)
+                                                 or_second_mask=second_mask, only_files=True)
         oldest_date = datetime.datetime.now(tzlocal.get_localzone())
         oldest_label = None
         for file in full_bck:
