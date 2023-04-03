@@ -727,8 +727,8 @@ class AWS_Connector:
         arr = os.path.splitext(path)
         exten = arr[len(arr) - 1]
         if exten != '' and exten not in self.__get_valid_extensions():
-                return False
-        elif not path.endswith('backup_manifest'):
+            return False
+        elif exten == '' and not path.endswith('backup_manifest'):
             try:
                 numb = int('0x' + os.path.basename(path), base=16)
             except ValueError:
@@ -736,7 +736,7 @@ class AWS_Connector:
         return True
 
     def __get_valid_extensions(self):
-        return ['gz', 'xz', 'backup', 'dump']
+        return ['.gz', '.xz', '.backup', '.dump']
 
     def _upload_to_cloud(self, local_cloud_paths: {}, with_hash):
         to_upload = {}
@@ -898,7 +898,6 @@ class LocalCleaner:
         self.set_whois_timezone_info()
 
     def set_whois_timezone_info(self):
-
         self.whois_timezone_info = {
             "A": 1 * 3600,
             "ACDT": 10.5 * 3600,
@@ -1129,9 +1128,26 @@ class LocalCleaner:
             "Z": 0 * 3600,
         }
 
+    class DefaultTimezone(datetime.tzinfo):
+        def utcoffset(self, dt):
+            return datetime.timedelta(hours=3)
+
+        def dst(self, dt):
+            return datetime.timedelta(0)
+
+        def tzname(self, dt):
+            return "Default Timezone"
+
+    def __get_local_zone(self):
+        try:
+            localzone = tzlocal.get_localzone()
+        except ValueError:
+            localzone = self.DefaultTimezone()
+        return localzone
+
     def _clean_local(self):
         storage_time = self.args.storage_time()
-        expire_date = datetime.datetime.now(tzlocal.get_localzone()) - datetime.timedelta(seconds=storage_time)
+        expire_date = datetime.datetime.now(self.__get_local_zone()) - datetime.timedelta(seconds=storage_time)
         self.__clean_dumps(expire_date)
         if self.args.handle_full_bcks():
             self.__clean_full_bcks(expire_date)
@@ -1140,11 +1156,13 @@ class LocalCleaner:
 
         self.__delete_local_empty_bck_dirs()
 
+
     def __clean_dumps(self, expire_date):
         dumps = Func.get_objects_list_on_disk(self.args.path_to_dump_local(), only_files=True)
         dic_backups = {}
         for backup in dumps:
-            backup_date = datetime.datetime.fromtimestamp(os.path.getmtime(backup), tzlocal.get_localzone())
+
+            backup_date = datetime.datetime.fromtimestamp(os.path.getmtime(backup), self.__get_local_zone())
             dic_backups.update({backup: backup_date})
 
         dic_backups = dict(sorted(dic_backups.items(), key=lambda x: x[1]))
@@ -1258,7 +1276,7 @@ class LocalCleaner:
 
     def __read_full_bck_create_date(self, backup: str):
         if(self.args.use_simple_way_read_bck_date()):
-            return datetime.datetime.fromtimestamp(os.path.getmtime(backup), tzlocal.get_localzone())
+            return datetime.datetime.fromtimestamp(os.path.getmtime(backup), self.__get_local_zone())
 
         date_str = None
         try:
@@ -1338,7 +1356,7 @@ class LocalCleaner:
         second_mask = '_base.'
         full_bck = Func.get_objects_list_on_disk(self.args.full_path_to_full_backup_local(), mask=mask,
                                                  or_second_mask=second_mask, only_files=True)
-        oldest_date = datetime.datetime.now(tzlocal.get_localzone())
+        oldest_date = datetime.datetime.now(self.__get_local_zone())
         oldest_label = None
         for file in full_bck:
             file_name = os.path.basename(file)
