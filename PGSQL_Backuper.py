@@ -24,29 +24,29 @@ class Func:
     def get_objects_list_on_disk(path, mask=None, or_second_mask=None, only_files=True):
         objects_list = []
         for root, dirs, files in os.walk(path):
-            total_files = len(files)
-            i = 0
+            total_files_in_dir = len(files)
+            current_amount_in_dir = 0
             temp = []
             for filename in files:
-                i += 1
+                current_amount_in_dir += 1
                 if mask is not None:
                     if mask in filename:
                         objects_list.append(os.path.join(root, filename))
-                        i = total_files + 1
-                    else:
-                        if or_second_mask is not None:
-                            if i == total_files:
-                                if len(temp) > 0:
-                                    for val in temp:
-                                        if or_second_mask in val:
-                                            objects_list.append(os.path.join(root, val))
-                                elif or_second_mask in filename:
+                    elif or_second_mask is not None:
+                        if current_amount_in_dir == total_files_in_dir:
+                            if len(temp) > 0:
+                                if or_second_mask in filename:
                                     objects_list.append(os.path.join(root, filename))
-                            else:
-                                temp.append(filename)
-                                continue
+                                for val in temp:
+                                    if or_second_mask in val:
+                                        objects_list.append(os.path.join(root, val))
+                            elif or_second_mask in filename:
+                                objects_list.append(os.path.join(root, filename))
                         else:
+                            temp.append(filename)
                             continue
+                    else:
+                        continue
                 else:
                     objects_list.append(os.path.join(root, filename))
 
@@ -179,6 +179,8 @@ class Args(object):
     __pg_basebackup: str = None
     __use_simple_way_read_bck_date: bool = None
     __path_to_7zip: str = None
+    __dump_leave_amount: int = None
+    __full_bck_leave_amount: int = None
 
     __postgresql_isntance_path: str = None
     __postgresql_username: str = None
@@ -422,6 +424,12 @@ class Args(object):
     def use_temp_dump(self):
         return self.__use_temp_dump
 
+    def dump_leave_amount(self):
+        return self.__dump_leave_amount
+
+    def full_bck_leave_amount(self):
+        return self.__full_bck_leave_amount
+
     # Setters
     def set_aws_access_key_id(self, val: str):
         self.__aws_access_key_id = str(val)
@@ -486,6 +494,12 @@ class Args(object):
 
     def set_use_temp_dump(self, val: bool):
         self.__use_temp_dump = val
+
+    def set_dump_leave_amount(self, val: int):
+        self.__dump_leave_amount = val
+
+    def set_full_bck_leave_amount(self, val: int):
+        self.__full_bck_leave_amount = val
 
     def aws_correct_folder_name(self, _dir: str):
         valid_characters = '0123456789qwertyuiopasdfghjklzxcvbnmйцукенгшщзхъфывапролджэячсмитьбюё'
@@ -1175,15 +1189,16 @@ class LocalCleaner:
                 os.remove(backup)
                 dic_backups.pop(backup)
             i += 1
+        leave_amount = self.args.dump_leave_amount()
+        if(isinstance(leave_amount, int) and leave_amount > -1):
+            self.__dumps_leave_N_plus_1(dic_backups,leave_amount)
 
-        self.__dumps_leave_3_plus_1(dic_backups)
-
-    def __dumps_leave_3_plus_1(self, sorted_backups: {}):
+    def __dumps_leave_N_plus_1(self, sorted_backups: {}, leave_amount: int):
         i = 0
         items = list(sorted_backups.items())
         while i < len(items):
             backup, backup_date = items[i]
-            if 0 < i < len(items) - 3:
+            if 0 < i < len(items) - leave_amount:
                 os.remove(backup)
             i += 1
 
@@ -1192,9 +1207,11 @@ class LocalCleaner:
         for full_bck in expired_full_bcks:
             os.remove(full_bck)
 
-        self.__full_bcks_leave_3_plus_1()
+        leave_amount = self.args.full_bck_leave_amount()
+        if(isinstance(leave_amount, int) and leave_amount > -1):
+            self.__full_bcks_leave_N_plus_1(leave_amount)
 
-    def __full_bcks_leave_3_plus_1(self):
+    def __full_bcks_leave_N_plus_1(self, leave_amount: int):
         mask = '_backup_manifest'
         second_mask = '_base.'
         only_bcks = Func.get_objects_list_on_disk(self.args.full_path_to_full_backup_local(), mask=mask,
@@ -1225,8 +1242,7 @@ class LocalCleaner:
             i += 1
 
         isfirst = True
-        leave = 3
-        amount_to_delete = bck_amount - leave if bck_amount >= leave else 0
+        amount_to_delete = bck_amount - leave_amount - 1 if bck_amount >= leave_amount else 0
         items = list(dic_backups.items())
         i = 0
         while i < len(items):
@@ -1248,7 +1264,8 @@ class LocalCleaner:
             backup, backup_date = items[i]
             if '_backup_manifest' in backup:
                 dir_path = os.path.dirname(backup)
-                if len(os.listdir(dir_path)) == 1:
+                base_bcks =Func.get_objects_list_on_disk(dir_path, mask='_base', only_files=True)
+                if len(base_bcks) == 0:
                     os.remove(backup)
                     dic_backups.pop(backup)
             i += 1
@@ -1405,11 +1422,10 @@ class LocalCleaner:
                 if '.backup' not in file:
                     continue
                 try:
-                    content = None
-                    try:
-                        content = lzma.open(os.path.join(root, file), "rt")
-                    except lzma.LZMAError:
+                    if file.endswith('.backup'):
                         content = open(os.path.join(root, file))
+                    else:
+                        content = lzma.open(os.path.join(root, file), "rt")
 
                     temp_res = ''
                     for line in content:
