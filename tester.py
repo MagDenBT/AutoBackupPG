@@ -5,7 +5,7 @@ from PGSQL_Backuper import Manager as ManagerPostgreSQLBackuper
 
 def test_pg():
  
-    p_create_full_and_dump_without_7zip_args = {
+    p_create_full_and_dump_STDOUT_without_7zip_args = {
         'path_to_backups': r'C:\PGBackups',
         'custom_dir': r'Sales depart',
         'database_name': r'testWAL',
@@ -15,6 +15,18 @@ def test_pg():
         'handle_full_bcks': True,
         'local_path_to_wal_files': r'C:\PGBackups\WAL',
     }
+    p_create_full_and_dump_STDOUT_with_7zip_args = {
+        'path_to_backups': r'C:\PGBackups',
+        'custom_dir': r'Sales depart',
+        'database_name': r'testWAL',
+        'postgresql_isntance_path': r'C:\Program Files\PostgreSQL\13',
+        'postgresql_username': 'postgres',
+        'postgresql_password': '1122',
+        'handle_full_bcks': True,
+        'local_path_to_wal_files': r'C:\PGBackups\WAL',
+        'path_to_7zip': r'C:\PGBackups\7zip',
+    }
+
     p_create_dump_STDOUT_without_7zip_args = {
         'path_to_backups': r'C:\PGBackups',
         'custom_dir': r'Sales depart',
@@ -23,7 +35,6 @@ def test_pg():
         'postgresql_username': 'postgres',
         'postgresql_password': '1122',
     }
-
     p_create_dump_ROM_without_7zip_args = {
         'path_to_backups': r'C:\PGBackups',
         'custom_dir': r'Sales depart',
@@ -33,17 +44,7 @@ def test_pg():
         'postgresql_password': '1122',
         'use_temp_dump': True,
     }
-    p_create_full_and_dump_with_7zip_args = {
-        'path_to_backups': r'C:\PGBackups',
-        'custom_dir': r'Sales depart',
-        'database_name': r'testWAL',
-        'postgresql_isntance_path': r'C:\Program Files\PostgreSQL\13',
-        'postgresql_username': 'postgres',
-        'postgresql_password': '1122',
-        'handle_full_bcks': True,
-        'local_path_to_wal_files': r'C:\PGBackups\WAL',
-        'path_to_7zip': r'C:\PGBackups\OLD\Testing\Script\7zip',
-    }
+
     p_create_dump_STDOUT_with_7zip_args = {
         'path_to_backups': r'C:\PGBackups',
         'custom_dir': r'Sales depart',
@@ -51,9 +52,8 @@ def test_pg():
         'postgresql_isntance_path': r'C:\Program Files\PostgreSQL\13',
         'postgresql_username': 'postgres',
         'postgresql_password': '1122',
-        'path_to_7zip': r'C:\PGBackups\OLD\Testing\Script\7zip',
+        'path_to_7zip': r'C:\PGBackups\7zip',
     }
-
     p_create_dump_ROM_with_7zip_args = {
         'path_to_backups': r'C:\PGBackups',
         'custom_dir': r'Sales depart',
@@ -61,7 +61,41 @@ def test_pg():
         'postgresql_isntance_path': r'C:\Program Files\PostgreSQL\13',
         'postgresql_username': 'postgres',
         'postgresql_password': '1122',
-        'path_to_7zip': r'C:\PGBackups\OLD\Testing\Script\7zip',
+        'path_to_7zip': r'C:\PGBackups\7zip',
+        'use_temp_dump': True,
+    }
+
+    p_create_ALL_BASES_dump_STDOUT_without_7zip_args = {
+        'path_to_backups': r'C:\PGBackups',
+        'custom_dir': r'Sales depart',
+        'postgresql_isntance_path': r'C:\Program Files\PostgreSQL\13',
+        'postgresql_username': 'postgres',
+        'postgresql_password': '1122',
+    }
+    p_create_ALL_BASES_dump_ROM_without_7zip_args = {
+        'path_to_backups': r'C:\PGBackups',
+        'custom_dir': r'Sales depart',
+        'postgresql_isntance_path': r'C:\Program Files\PostgreSQL\13',
+        'postgresql_username': 'postgres',
+        'postgresql_password': '1122',
+        'use_temp_dump': True,
+    }
+
+    p_create_ALL_BASES_dump_STDOUT_with_7zip_args = {
+        'path_to_backups': r'C:\PGBackups',
+        'custom_dir': r'Sales depart',
+        'postgresql_isntance_path': r'C:\Program Files\PostgreSQL\13',
+        'postgresql_username': 'postgres',
+        'postgresql_password': '1122',
+        'path_to_7zip': r'C:\PGBackups\7zip',
+    }
+    p_create_ALL_BASES_dump_ROM_with_7zip_args = {
+        'path_to_backups': r'C:\PGBackups',
+        'custom_dir': r'Sales depart',
+        'postgresql_isntance_path': r'C:\Program Files\PostgreSQL\13',
+        'postgresql_username': 'postgres',
+        'postgresql_password': '1122',
+        'path_to_7zip': r'C:\PGBackups\7zip',
         'use_temp_dump': True,
     }
 
@@ -102,14 +136,21 @@ def test_pg():
 
 
 
-    # m = ManagerPostgreSQLBackuper(new_args=p_create_full_and_dump_without_7zip_args, create_backup=True)
-    # m = ManagerPostgreSQLBackuper(new_args=p_create_dump_STDOUT_without_7zip_args, create_backup=True)
-    # m = ManagerPostgreSQLBackuper(new_args=p_create_dump_ROM_without_7zip_args, create_backup=True)
-    # m = ManagerPostgreSQLBackuper(new_args=p_create_full_and_dump_with_7zip_args, create_backup=True)
-    # m = ManagerPostgreSQLBackuper(new_args=p_create_dump_STDOUT_with_7zip_args, create_backup=True)
-    # m = ManagerPostgreSQLBackuper(new_args=p_create_dump_ROM_with_7zip_args, create_backup=True)
-    # m.create_backup(raise_exception=True)
-    # return
+    # m = ManagerPostgreSQLBackuper(new_args=p_create_full_and_dump_STDOUT_without_7zip_args, create_backup=True)
+    # m = ManagerPostgreSQLBackuper(new_args=p_create_full_and_dump_STDOUT_with_7zip_args, create_backup=True)
+
+    m = ManagerPostgreSQLBackuper(new_args=p_create_dump_STDOUT_without_7zip_args, create_backup=True)
+    m = ManagerPostgreSQLBackuper(new_args=p_create_dump_ROM_without_7zip_args, create_backup=True)
+    m = ManagerPostgreSQLBackuper(new_args=p_create_dump_STDOUT_with_7zip_args, create_backup=True)
+    m = ManagerPostgreSQLBackuper(new_args=p_create_dump_ROM_with_7zip_args, create_backup=True)
+
+    m = ManagerPostgreSQLBackuper(new_args=p_create_ALL_BASES_dump_STDOUT_without_7zip_args, create_backup=True)
+    m = ManagerPostgreSQLBackuper(new_args=p_create_ALL_BASES_dump_ROM_without_7zip_args, create_backup=True)
+    m = ManagerPostgreSQLBackuper(new_args=p_create_ALL_BASES_dump_STDOUT_with_7zip_args, create_backup=True)
+    m = ManagerPostgreSQLBackuper(new_args=p_create_ALL_BASES_dump_ROM_with_7zip_args, create_backup=True)
+
+    m.create_backup(raise_exception=True)
+    return
     # m = ManagerPostgreSQLBackuper(new_args=p_sync_full_and_dump_args, sync_backups=True)
     # m = ManagerPostgreSQLBackuper(new_args=p_sync_dump_args, sync_backups=True)
     #m.sync_with_cloud(raise_exception=True)
@@ -126,7 +167,7 @@ def test_base_bck():
     'custom_dir': r'Sales depart',
     'path_to_onec_fb_backups': r'C:\PGBackups',
     'path_to_source_OneC': r'C:\PGBackups\base1c_test',
-    'path_to_7zip': r'C:\PGBackups\OLD\Testing\Script\7zip',
+    'path_to_7zip': r'C:\PGBackups\7zip',
     }
 
     sync_1c_args = {
@@ -169,13 +210,13 @@ def test_base_bck():
     # m.create_backup(raise_exception=True)
 
     # m = ManagerBaseBackuper(new_args=sync_1c_args, sync_backups=True)
-    m = ManagerBaseBackuper(new_args=sync_1c_and_MSSQL_args, sync_backups=True)
-    m.sync_with_cloud(raise_exception=True)
-    return
-    m = ManagerBaseBackuper(new_args=clean_1c_and_MSSQL_args, clean_backups=True)
-    m = ManagerBaseBackuper(new_args=clean_1c_args, clean_backups=True)
-    m.clean_backups(raise_exception=True)
-    return
+    # m = ManagerBaseBackuper(new_args=sync_1c_and_MSSQL_args, sync_backups=True)
+    # m.sync_with_cloud(raise_exception=True)
+    # return
+    # m = ManagerBaseBackuper(new_args=clean_1c_and_MSSQL_args, clean_backups=True)
+    # m = ManagerBaseBackuper(new_args=clean_1c_args, clean_backups=True)
+    # m.clean_backups(raise_exception=True)
+    # return
 
   
 
@@ -209,7 +250,7 @@ def test_commander():
     }
    
 
-    PGSQL_param_setter(ArgsParamSetter(correct_params_args )).set_parametrs()
+    # PGSQL_param_setter(ArgsParamSetter(correct_params_args )).set_parametrs()
     # PGSQL_param_setter(ArgsParamSetter(wrong_params_args)).set_parametrs()
     # PGSQL_param_setter(ArgsParamSetter(no_7zip_params_args)).set_parametrs()
 

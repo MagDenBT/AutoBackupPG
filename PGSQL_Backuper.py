@@ -2,6 +2,8 @@
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+from typing import Any
+
 import lzma
 
 
@@ -245,8 +247,7 @@ class Args(object):
             req_args.extend([
                 'postgresql_isntance_path',
                 'postgresql_username',
-                'postgresql_password',
-                'database_name'
+                'postgresql_password'
             ])
         if clean_backups:
             req_args.extend([
@@ -347,6 +348,9 @@ class Args(object):
 
     def pg_dump(self):
         return self.postgresql_isntance_path() + 'bin\\pg_dump.exe'
+
+    def pg_dumpall(self):
+        return self.postgresql_isntance_path() + 'bin\\pg_dumpall.exe'
 
     def temp_path(self):
         if self.__temp_path is None or self.__temp_path == '':
@@ -595,28 +599,30 @@ class DumpBackuper:
             raise Exception(
                 f'pg_dump по адресу {self.args.pg_dump()} не найден. Проверьте правильность пути до каталога сервера PosgtrSQL или pg_dump(если он задан отдельно). Текущий путь до сервера в скрипте - {self.args.postgresql_isntance_path()}')
 
-        dump_name = f'{self.args.database_name()}_{self.args.label()}.dump'
+        all_bases = self.args.database_name() is None or self.args.database_name() == ""
+
+        base_name = "all_bases" if all_bases else self.args.database_name()
+
+
+        dump_name = f'{base_name}_{self.args.label()}.dump'
         dump_full_path = f'{self.args.path_to_dump_local()}\\{dump_name}'
         if not os.path.exists(self.args.path_to_dump_local()):
             os.makedirs(self.args.path_to_dump_local())
 
         if self.args.use_temp_dump():
-            self.__create_through_ROM(dump_full_path)
+            self.__create_through_ROM(dump_full_path, all_bases)
         else:
-            self.__create_through_stdout(dump_full_path)
+            self.__create_through_stdout(dump_full_path, all_bases)
 
-    def __create_through_stdout(self, dump_full_path):
-        port_arg = ''
-        if self.args.pg_port() is not None and self.args.pg_port() != '':
-            port_arg = f' -p {self.args.pg_port()}'
-        comm_args = f'"{self.args.pg_dump()}"{port_arg} -U {self.args.postgresql_username()} -Fc {self.args.database_name()}'
+
+    def __create_through_stdout(self, dump_full_path, all_bases: bool):
+        archiver = None
         if self.args.archive_dump():
-            arch = f'{self.args.path_to_7zip()}\\7za.exe'
-            if not os.path.exists(arch):
-                raise Exception(f'{arch} - архиватор не найден')
-            comm_args = comm_args + f' | "{arch}" a -si "{dump_full_path}.xz"'
-        else:
-            comm_args += f' > "{dump_full_path}"'
+            archiver = f'{self.args.path_to_7zip()}\\7za.exe'
+            if not os.path.exists(archiver):
+                raise Exception(f'{archiver} - архиватор не найден')
+
+        comm_args = self.__all_bases_command_through_stdout(archiver, dump_full_path) if all_bases else self.__specific_base_command_through_stdout(archiver, dump_full_path)
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self.args.postgresql_password()
         try:
@@ -630,7 +636,31 @@ class DumpBackuper:
         if pg_error != '':
             raise Exception(pg_error)
 
-    def __create_through_ROM(self, finish_dump_path):
+ 
+    def __all_bases_command_through_stdout(self, archiver, dump_full_path):
+        port_arg = ''
+        if self.args.pg_port() is not None and self.args.pg_port() != '':
+            port_arg = f' -p {self.args.pg_port()}'
+        comm_args = f'"{self.args.pg_dumpall()}"{port_arg} -U {self.args.postgresql_username()}'
+        if archiver is not None:
+            comm_args = comm_args + f' | "{archiver}" a -si "{dump_full_path}.xz"'
+        else:
+            comm_args += f' > "{dump_full_path}"'
+        return comm_args
+
+    def __specific_base_command_through_stdout(self, archiver, dump_full_path):
+        port_arg = ''
+        if self.args.pg_port() is not None and self.args.pg_port() != '':
+            port_arg = f' -p {self.args.pg_port()}'
+        comm_args = f'"{self.args.pg_dump()}"{port_arg} -U {self.args.postgresql_username()} -Fc {self.args.database_name()}'
+        if archiver is not None:
+            comm_args = comm_args + f' | "{archiver}" a -si "{dump_full_path}.xz"'
+        else:
+            comm_args += f' > "{dump_full_path}"'
+        return comm_args
+
+
+    def __create_through_ROM(self, finish_dump_path, all_bases: bool):
         arch = f'{self.args.path_to_7zip()}\\7za.exe'
         if self.args.archive_dump():
             if not os.path.exists(arch):
@@ -641,15 +671,7 @@ class DumpBackuper:
         else:
             dump_full_path = finish_dump_path
 
-        comm_args = [self.args.pg_dump(),
-                     '-U', self.args.postgresql_username(),
-                     '-Fc',
-                     '-f', dump_full_path,
-                     self.args.database_name()
-                     ]
-        if self.args.pg_port() is not None and self.args.pg_port() != '':
-            comm_args.insert(1, '-p')
-            comm_args.insert(2, self.args.pg_port())
+        comm_args = self.__all_bases_command_through_ROM(dump_full_path) if all_bases else self.__specific_base_command_through_ROM(dump_full_path)
 
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self.args.postgresql_password()
@@ -666,7 +688,27 @@ class DumpBackuper:
         else:
             raise Exception(text_error)
 
+    def __all_bases_command_through_ROM(self, dump_full_path):
+        comm_args = [self.args.pg_dumpall(),
+                     '-U', self.args.postgresql_username(),
+                     '-f', dump_full_path
+                     ]
+        if self.args.pg_port() is not None and self.args.pg_port() != '':
+            comm_args.insert(1, '-p')
+            comm_args.insert(2, self.args.pg_port())
+        return comm_args
 
+    def __specific_base_command_through_ROM(self, dump_full_path):
+        comm_args = [self.args.pg_dump(),
+                     '-U', self.args.postgresql_username(),
+                     '-Fc',
+                     '-f', dump_full_path,
+                     self.args.database_name()
+                     ]
+        if self.args.pg_port() is not None and self.args.pg_port() != '':
+            comm_args.insert(1, '-p')
+            comm_args.insert(2, self.args.pg_port())
+        return comm_args
 
     def __archive_with_external_tool(self, arch_path, source, target):
         comm_args = f'"{arch_path}" a -sdel "{target}.xz" "{source}"'
