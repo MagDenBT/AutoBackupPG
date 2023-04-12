@@ -636,7 +636,7 @@ class DumpBackuper:
         if pg_error != '':
             raise Exception(pg_error)
 
- 
+
     def __all_bases_command_through_stdout(self, archiver, dump_full_path):
         port_arg = ''
         if self.args.pg_port() is not None and self.args.pg_port() != '':
@@ -792,7 +792,7 @@ class AWS_Connector:
         return True
 
     def __get_valid_extensions(self):
-        return ['.gz', '.xz', '.backup', '.dump']
+        return ['.gz', '.xz', '.txz', '.backup', '.dump']
 
     def _upload_to_cloud(self, local_cloud_paths: {}, with_hash):
         to_upload = {}
