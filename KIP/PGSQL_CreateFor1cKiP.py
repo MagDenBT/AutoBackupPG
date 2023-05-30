@@ -1,33 +1,8 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-# Этот модуль требуется импортировать в начале каждого скрипта.
-import json
 import traceback
 
-from lib.common import bootstrap
-# Экспорт базового класса для сценария. Он отвечает за настройку логгирования,
-# базовую валидацию параметров, перехват исключений и корректное завершение
-# скрипта и т.д.
 from lib.common.base_scenario import BaseScenario
-# Экспорт класса ошибок.
 from lib.common.errors import SACError
 from lib.common.logger import global_logger
-from lib.common.config import StrPathExpanded
-
-
-from lib.utils.fs import remove_file_or_directory
-
-import pickle
-import os
-import subprocess
-from datetime import datetime
-import random
-import requests as requests
-
-# CLoud settings
-# from lib.common.logger import global_logger
 
 from PGSQL_Backuper import Manager
 
@@ -37,17 +12,9 @@ class PGSQL_CreateFor1cKiP(BaseScenario):
     def _validate_specific_data(self):
         pass
 
-        ## Метод, который выполняется после инициализации скрипта и прохождения
-        # валидации. Тут могут быть выполнены любые действия, которые нужны перед
-        # началом теста.
-
     def _after_init(self):
         pass
 
-        ## Метод, который возвращает список тестов, которые необходимо провести.
-        # Каждый тест должен быть функцией, не принимающей параметры.
-        # Возвращаемый список должен содержать кортежи (имя теста, функция,
-        # выполнять только если тест не ограничивается).
 
     def _get_available_tests(self):
         return [
@@ -71,9 +38,15 @@ class PGSQL_CreateFor1cKiP(BaseScenario):
         # fp.close()
 
         write_to_log_file = self.config['write_to_log_file']
+        try:
+            if(self.config.scenario_context['database_name'].lower() == '_all_'):
+                self.config.scenario_context['database_name'] = ''
+        except:
+            global_logger.warning(message=f'Не удалось настроить параметры на ALL_BASES')
+
         manager = Manager(new_args=self.config.scenario_context, create_backup=True)
         global_logger.info(message="Запущен процесс создания бэкапа PostgreSQL")
-        dump_error = None
+        exceptions = []
         for name, backuper in manager.backupers().items():
             try:
                 backuper._create_backup()
@@ -81,20 +54,19 @@ class PGSQL_CreateFor1cKiP(BaseScenario):
                 if write_to_log_file:
                     manager.write_log(f'{name}-', True, '')
             except Exception as e:
-                if "dump" in name:
-                    dump_error = str(e)
-                global_logger.warning(message=f'{name}- ОШИБКА! - {str(e)}. {traceback.format_exc()}')
+                exceptions.append(str(e))
                 if write_to_log_file:
                     manager.write_log(f'{name}-', False, str(e))
 
-        if dump_error is not None:
-            raise SACError(24, f'Дамп не создан! - {dump_error}')
+        if len(exceptions) > 0:
+            exc_texts = '\n'.join(exceptions)
+            if len(exceptions) == len(manager.backupers()):
+                raise SACError(24, f'Бэкапы не созданы! - {exc_texts}')
+            else:
+                global_logger.warning(message=f'{exc_texts}. {traceback.format_exc()}')
 
 
 
 
-
-
-# Позволяет запускать сценарий, если данный файл был запущен напрямую.
 if __name__ == "__main__":
     PGSQL_CreateFor1cKiP.main()

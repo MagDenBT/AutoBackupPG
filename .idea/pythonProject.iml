@@ -12,7 +12,7 @@
       <excludeFolder url="file://$MODULE_DIR$/venv3" />
       <excludeFolder url="file://$MODULE_DIR$/venv4" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.8 (AutoBackupPG) (2)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.8 (venv)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

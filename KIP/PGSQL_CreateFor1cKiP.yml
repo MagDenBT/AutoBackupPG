@@ -2,6 +2,7 @@
 external-values:
   - path_to_backups
   - custom_dir
+  - database_name
   - postgresql_isntance_path
   - postgresql_username
   - postgresql_password
@@ -13,4 +14,4 @@ default-values:
   pg_basebackup: ""
   pg_port: ""
   use_temp_dump: True
-  database_name: ""
+

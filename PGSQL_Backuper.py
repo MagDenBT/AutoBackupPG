@@ -1551,16 +1551,20 @@ class Manager:
                 raise e
 
     def create_backup(self, write_to_log_file=True, raise_exception=False):
+        exceptions = []
+
         for name, backuper in self.__backupers.items():
             try:
                 backuper._create_backup()
                 if write_to_log_file:
                     self.write_log(f'{name}-', True, '')
             except Exception as e:
+                exceptions.append(str(e))
                 if write_to_log_file:
                     self.write_log(f'{name}-', False, str(e))
-                if raise_exception:
-                    raise e
+
+        if raise_exception and len(exceptions) > 0:
+            raise Exception('\n'.join(exceptions))
 
     def sync_with_cloud(self, write_to_log_file=True, raise_exception=False):
         try:
