@@ -743,8 +743,9 @@ class AWS_Connector:
         if message is not None:
             raise Exception(message)
 
+        local_cloud_paths = {}
         if Func.contain_files(self.args.path_to_dump_local()):
-            local_cloud_paths = {self.args.path_to_dump_local(): self.args.path_to_dump_cloud(for_aws=True)}
+            local_cloud_paths.update({self.args.path_to_dump_local(): self.args.path_to_dump_cloud(for_aws=True)})
         if self.args.handle_full_bcks():
             if Func.contain_files(self.args.full_path_to_full_backup_local()):
                 local_cloud_paths.update(
