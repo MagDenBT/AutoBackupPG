@@ -18,6 +18,8 @@ import hashlib
 import json
 from dateutil import parser
 import tzlocal
+from boto3.s3.transfer import TransferConfig
+
 
 
 class Func:
@@ -723,44 +725,47 @@ class DumpBackuper:
 
 
 class AWS_Connector:
-    aws_client = None
-    args: Args = None
-    cloud_backups = []
+    _aws_client = None
+    _args: Args = None
+    _cloud_backups = []
 
-    def __init__(self, args: Args):
-        self.args = args
+
+    def __init__(self, args: Args, max_bandwidth_bytes = None, threshold_bandwidth = 500*1000/8):
+        self._args = args
         session = boto3.session.Session()
-        self.aws_client = session.client(
+        self._aws_client = session.client(
             service_name='s3',
-            endpoint_url=self.args.aws_endpoint_url(),
-            aws_access_key_id=self.args.aws_access_key_id(),
-            aws_secret_access_key=self.args.aws_secret_access_key(),
+            endpoint_url=self._args.aws_endpoint_url(),
+            aws_access_key_id=self._args.aws_access_key_id(),
+            aws_secret_access_key=self._args.aws_secret_access_key()
         )
+        self._max_bandwidth_bytes = max_bandwidth_bytes
+        self._threshold_bandwidth = threshold_bandwidth
 
     def _sync_with_cloud(self):
-        bucket = self.args.aws_bucket()
-        message = Func.bucket_exists_and_accessible(self.aws_client, bucket)
+        bucket = self._args.aws_bucket()
+        message = Func.bucket_exists_and_accessible(self._aws_client, bucket)
         if message is not None:
             raise Exception(message)
 
         local_cloud_paths = {}
-        if Func.contain_files(self.args.path_to_dump_local()):
-            local_cloud_paths.update({self.args.path_to_dump_local(): self.args.path_to_dump_cloud(for_aws=True)})
-        if self.args.handle_full_bcks():
-            if Func.contain_files(self.args.full_path_to_full_backup_local()):
+        if Func.contain_files(self._args.path_to_dump_local()):
+            local_cloud_paths.update({self._args.path_to_dump_local(): self._args.path_to_dump_cloud(for_aws=True)})
+        if self._args.handle_full_bcks():
+            if Func.contain_files(self._args.full_path_to_full_backup_local()):
                 local_cloud_paths.update(
-                    {self.args.full_path_to_full_backup_local(): self.args.path_to_full_backup_cloud(for_aws=True)})
-        if self.args.handle_wal_files():
-            if Func.contain_files(self.args.local_path_to_wal_files()):
+                    {self._args.full_path_to_full_backup_local(): self._args.path_to_full_backup_cloud(for_aws=True)})
+        if self._args.handle_wal_files():
+            if Func.contain_files(self._args.local_path_to_wal_files()):
                 local_cloud_paths.update(
-                    {self.args.local_path_to_wal_files(): self.args.path_to_incr_backup_cloud(for_aws=True)})
+                    {self._args.local_path_to_wal_files(): self._args.path_to_incr_backup_cloud(for_aws=True)})
 
-        with_hash = self.args.with_hash()
-        all_cloud_backups = Func.get_objects_on_aws(self.aws_client, bucket, '', with_hash=with_hash)
+        with_hash = self._args.with_hash()
+        all_cloud_backups = Func.get_objects_on_aws(self._aws_client, bucket, '', with_hash=with_hash)
         for local_path, cloud_path in local_cloud_paths.items():
             for cloud_backup in all_cloud_backups:
                 if cloud_backup.startswith(cloud_path):
-                    self.cloud_backups.append(cloud_backup)
+                    self._cloud_backups.append(cloud_backup)
 
         corrupt_files = self.__get_corrupt_files(local_cloud_paths)
         if len(corrupt_files) == 0:
@@ -805,12 +810,37 @@ class AWS_Connector:
         if len(to_upload) == 0:
             return 'Нет новых файлов для выгрузки'
 
-        upload_config = boto3.s3.transfer.TransferConfig(multipart_chunksize=self.args.aws_chunk_size())
-
         for backup_local, savefile in to_upload.items():
-            self.aws_client.upload_file(backup_local, self.args.aws_bucket(), savefile, Config=upload_config)
+                self.__upload_file(backup_local, savefile )
 
         return ''
+
+    def __upload_file(self, local_file, target_file, adjust_bandwidth=True):
+
+        upload_config = TransferConfig(multipart_chunksize=self._args.aws_chunk_size(), max_bandwidth=self._max_bandwidth_bytes)
+
+        from botocore.exceptions import (
+            ConnectionClosedError,
+            ConnectTimeoutError,
+            ReadTimeoutError,
+            EndpointConnectionError
+        )
+
+        try:
+            self._aws_client.upload_file(local_file, self._args.aws_bucket(), target_file, Config=upload_config)
+        except (
+                ConnectionClosedError,
+                ReadTimeoutError,
+                ConnectTimeoutError,
+        ) as e:
+            new_max_bandwidth_bytes = self.__get_bandwidth_limit() if self._max_bandwidth_bytes is None else self._max_bandwidth_bytes / 100 * 70
+
+            if adjust_bandwidth:
+                if self._threshold_bandwidth < new_max_bandwidth_bytes:
+                    self._max_bandwidth_bytes = new_max_bandwidth_bytes
+                    self.__upload_file(local_file, target_file, True)
+                else:
+                    raise Exception(f"Нестабильный интернет. Автопонижение скорости выгрузки до {self._max_bandwidth_bytes / 125} Кбит/с не решило проблему")
 
     def __compute_files_to_upload(self, local_backups: [], root_local_path, path_cloud, with_hash=False):
         if with_hash:
@@ -818,6 +848,8 @@ class AWS_Connector:
         else:
             return self.__compute_files_to_upload_no_hash(local_backups, root_local_path, path_cloud)
 
+    def __get_bandwidth_limit(self):
+        return 9 * 1000 * 1000 / 8 #Speed - 9Mbit/s
 
     def __compute_files_to_upload_no_hash(self, local_backups: [], root_local_path, path_cloud):
         result = {}
@@ -826,9 +858,9 @@ class AWS_Connector:
             dir_name = os.path.basename(_dir)
             file_name_for_cloud = file_name = os.path.basename(l_backup)
             if not root_local_path.endswith(_dir):
-                file_name_for_cloud = f'{self.args.aws_correct_folder_name(dir_name)}/{file_name}'
+                file_name_for_cloud = f'{self._args.aws_correct_folder_name(dir_name)}/{file_name}'
             l_add = True
-            for cloud_backup in self.cloud_backups:
+            for cloud_backup in self._cloud_backups:
                 if cloud_backup.endswith(file_name):
                     l_add = False
                     break
@@ -844,11 +876,11 @@ class AWS_Connector:
             dir_name = os.path.basename(path_to_dir)
             file_name_for_cloud = file_name = os.path.basename(l_backup)
             if not root_local_path.endswith(path_to_dir):
-                file_name_for_cloud = f'{self.args.aws_correct_folder_name(dir_name)}/{file_name}'
+                file_name_for_cloud = f'{self._args.aws_correct_folder_name(dir_name)}/{file_name}'
 
-            md5_local = Func.get_md5(l_backup, self.args.aws_chunk_size())
+            md5_local = Func.get_md5(l_backup, self._args.aws_chunk_size())
             l_add = True
-            for cloud_backup in self.cloud_backups:
+            for cloud_backup in self._cloud_backups:
                 if cloud_backup['Path'].endswith(file_name) and md5_local == cloud_backup['Hash']:
                     l_add = False
                     break
@@ -863,7 +895,7 @@ class AWS_Connector:
             objects = []
             for bck in extra_bck:
                 objects.append({'Key': bck})
-            self.aws_client.delete_objects(Bucket=self.args.aws_bucket(), Delete={'Objects': objects})
+            self._aws_client.delete_objects(Bucket=self._args.aws_bucket(), Delete={'Objects': objects})
 
     def __get_extra_bck_on_cloud(self, local_cloud_paths: {}, with_hash=False):
         if with_hash:
@@ -876,7 +908,7 @@ class AWS_Connector:
         loca_files = []
         for local_path, cloud_path in local_cloud_paths.items():
             loca_files.extend(Func.get_objects_list_on_disk(local_path, only_files=True))
-        for cloud_file in self.cloud_backups:
+        for cloud_file in self._cloud_backups:
             cloud_file_name = os.path.basename(cloud_file)
             to_delete = True
             for local_file in loca_files:
@@ -893,8 +925,8 @@ class AWS_Connector:
         loca_files = {}
         for local_path, cloud_path in local_cloud_paths.items():
             loca_files_pre = Func.get_objects_list_on_disk(local_path, only_files=True)
-            loca_files.update(Func.add_hashs_to_local_files(loca_files_pre,self.args.aws_chunk_size()))
-            for cloud_file in self.cloud_backups:
+            loca_files.update(Func.add_hashs_to_local_files(loca_files_pre, self._args.aws_chunk_size()))
+            for cloud_file in self._cloud_backups:
                 cloud_file_name = os.path.basename(cloud_file['Path'])
                 to_delete = True
                 for local_file, local_file_hash in loca_files.items():
@@ -906,7 +938,7 @@ class AWS_Connector:
         return result
 
     def __delete_empty_dirs_on_aws(self):
-        verification_path = self.args.path_to_cloud_custom_dir(for_aws=True)
+        verification_path = self._args.path_to_cloud_custom_dir(for_aws=True)
         empty_dirs = self.__empty_aws_cloud_dirs(verification_path)
 
         try:
@@ -920,10 +952,10 @@ class AWS_Connector:
         for path in empty_dirs:
             for_deletion.append({'Key': path})
 
-        self.aws_client.delete_objects(Bucket=self.args.aws_bucket(), Delete={'Objects': for_deletion})
+        self._aws_client.delete_objects(Bucket=self._args.aws_bucket(), Delete={'Objects': for_deletion})
 
     def __empty_aws_cloud_dirs(self, verification_path):
-        obj_on_aws = Func.get_objects_on_aws(self.aws_client, self.args.aws_bucket(),
+        obj_on_aws = Func.get_objects_on_aws(self._aws_client, self._args.aws_bucket(),
                                              verification_path, only_files=False, with_hash=False)
         obj_on_aws = set(obj_on_aws)
         result = obj_on_aws.copy()
