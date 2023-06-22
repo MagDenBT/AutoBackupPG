@@ -1245,7 +1245,6 @@ class LocalCleaner:
 
         self.__delete_local_empty_bck_dirs()
 
-
     def __clean_dumps(self, expire_date):
         dumps = Func.get_objects_list_on_disk(self.args.path_to_dump_local(), only_files=True)
         dic_backups = {}
@@ -1275,77 +1274,79 @@ class LocalCleaner:
             backup, backup_date = items[i]
             if 0 < i < len(items) - leave_amount:
                 os.remove(backup)
+                sorted_backups.pop(backup)
             i += 1
 
     def __clean_full_bcks(self, expire_date):
-        expired_full_bcks = self.__full_bck_to_remove(expire_date)
-        for full_bck in expired_full_bcks:
-            os.remove(full_bck)
+        expired_backups = self.__get_expired_full_backups(expire_date)
+        for backup in expired_backups:
+            os.remove(backup)
 
         leave_amount = self.args.full_bck_leave_amount()
         if(isinstance(leave_amount, int) and leave_amount > -1):
             self.__full_bcks_leave_N_plus_1(leave_amount)
 
     def __full_bcks_leave_N_plus_1(self, leave_amount: int):
+        backups = self.__get_full_backups_with_dates()
+        backups_sorted_by_date = dict(sorted(backups.items(), key=lambda x: x[1]))
+
+        items = list(backups_sorted_by_date.items())
+        i = 0
+        total_backups = 0
+        while i < len(items):
+            backup, backup_date = items[i]
+            if '_backup_manifest' not in backup:
+                total_backups += 1
+            i += 1
+
+        amount_to_delete = total_backups - leave_amount - 1 if total_backups >= leave_amount else 0
+        items = list(backups_sorted_by_date.items())
+        is_first = True
+        i = 0
+        while i < len(items):
+            backup, backup_date = items[i]
+            if '_backup_manifest' not in backup:
+                if is_first:
+                    is_first = False
+                elif amount_to_delete > 0:
+                    os.remove(backup)
+                    backups_sorted_by_date.pop(backup)
+                    amount_to_delete -= 1
+            i += 1
+
+        self.delete_manifest_files_without_backup(backups_sorted_by_date)
+
+    def __get_full_backups_with_dates(self):
         mask = '_backup_manifest'
         second_mask = '_base.'
-        only_bcks = Func.get_objects_list_on_disk(self.args.full_path_to_full_backup_local(), mask=mask,
+        backups = Func.get_objects_list_on_disk(self.args.full_path_to_full_backup_local(), mask=mask,
                                                   or_second_mask=second_mask, only_files=True)
         result = {}
-        for file in only_bcks:
+        for file in backups:
             file_name = os.path.basename(file)
             bck_date = self.__read_full_bck_create_date(file)
             if bck_date is not None:
-                if mask in file_name:
-                    current_mask = mask
-                else:
-                    current_mask = second_mask
-
+                current_mask = mask if mask in file_name else second_mask
                 portion = Func.get_objects_list_on_disk(os.path.dirname(file),
                                                         mask=file_name.split(current_mask)[0], only_files=True)
                 for bck_file in portion:
                     result.update({bck_file: bck_date})
-        dic_backups = dict(sorted(result.items(), key=lambda x: x[1]))
+        return result
 
-        items = list(dic_backups.items())
-        i = 0
-        bck_amount = 0
-        while i < len(items):
-            backup, backup_date = items[i]
-            if '_backup_manifest' not in backup:
-                bck_amount += 1
-            i += 1
-
-        isfirst = True
-        amount_to_delete = bck_amount - leave_amount - 1 if bck_amount >= leave_amount else 0
-        items = list(dic_backups.items())
-        i = 0
-        while i < len(items):
-            backup, backup_date = items[i]
-            if '_backup_manifest' not in backup:
-                if isfirst:
-                    isfirst = False
-                    i += 1
-                    continue
-                elif amount_to_delete > 0:
-                    os.remove(backup)
-                    dic_backups.pop(backup)
-                    amount_to_delete -= 1
-            i += 1
-
-        items = list(dic_backups.items())
+    def delete_manifest_files_without_backup(self, backups_sorted_by_date):
+        items = list(backups_sorted_by_date.items())
         i = 0
         while i < len(items):
             backup, backup_date = items[i]
             if '_backup_manifest' in backup:
                 dir_path = os.path.dirname(backup)
-                base_bcks =Func.get_objects_list_on_disk(dir_path, mask='_base', only_files=True)
+                base_bcks = Func.get_objects_list_on_disk(dir_path, mask='_base', only_files=True)
                 if len(base_bcks) == 0:
                     os.remove(backup)
-                    dic_backups.pop(backup)
+                    backups_sorted_by_date.pop(backup)
             i += 1
 
-    def __full_bck_to_remove(self, exprire_date: datetime):
+    def __get_expired_full_backups(self, expire_date: datetime):
         mask = '_backup_manifest'
         second_mask = '_base.'
         full_bck = Func.get_objects_list_on_disk(self.args.full_path_to_full_backup_local(), mask=mask,
@@ -1355,16 +1356,14 @@ class LocalCleaner:
         for file in full_bck:
             file_name = os.path.basename(file)
             bck_date = self.__read_full_bck_create_date(file)
-            if bck_date is not None and bck_date < exprire_date:
-                if mask in file_name:
-                    current_mask = mask
-                else:
-                    current_mask = second_mask
 
-                portion = Func.get_objects_list_on_disk(os.path.dirname(file),
+            if bck_date is not None and bck_date < expire_date:
+                current_mask = mask if mask in file_name else second_mask
+                portion_if_has_subdir = Func.get_objects_list_on_disk(os.path.dirname(file),
                                                         mask=file_name.split(current_mask)[0], only_files=True)
-                result.extend(portion)
-        return result
+                result.extend(portion_if_has_subdir)
+
+        return list(set(result))
 
     def __read_full_bck_create_date(self, backup: str):
         if(self.args.use_simple_way_read_bck_date()):
