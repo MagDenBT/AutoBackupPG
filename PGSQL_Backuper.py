@@ -183,8 +183,11 @@ class Args(object):
     __pg_basebackup: str = None
     __use_simple_way_read_bck_date: bool = None
     __path_to_7zip: str = None
+
     __dump_leave_amount: int = None
     __full_bck_leave_amount: int = None
+    __keep_one_dump_per_day: bool = None
+    __keep_one_full_bck_per_day: bool = None
 
     __postgresql_isntance_path: str = None
     __postgresql_username: str = None
@@ -436,6 +439,12 @@ class Args(object):
     def full_bck_leave_amount(self):
         return self.__full_bck_leave_amount
 
+    def keep_one_dump_per_day(self):
+        return self.__keep_one_dump_per_day
+
+    def keep_one_full_bck_per_day(self):
+        return self.__keep_one_full_bck_per_day
+
     # Setters
     def set_aws_access_key_id(self, val: str):
         self.__aws_access_key_id = str(val)
@@ -512,6 +521,12 @@ class Args(object):
         if _dir[0].lower() not in valid_characters:
             _dir = 'A' + _dir
         return _dir
+
+    def set_keep_one_dump_per_day(self, val: bool):
+        self.__keep_one_dump_per_day = val
+
+    def set_keep_one_full_bck_per_day(self, val: bool):
+            self.__keep_one_full_bck_per_day = val
 
 
 class BaseBackuper:
@@ -1248,8 +1263,8 @@ class LocalCleaner:
     def __clean_dumps(self, expire_date):
         dumps = Func.get_objects_list_on_disk(self.args.path_to_dump_local(), only_files=True)
         dic_backups = {}
-        for backup in dumps:
 
+        for backup in dumps:
             backup_date = datetime.datetime.fromtimestamp(os.path.getmtime(backup), self.__get_local_zone())
             dic_backups.update({backup: backup_date})
 
@@ -1257,12 +1272,25 @@ class LocalCleaner:
 
         items = list(dic_backups.items())
         i = 0
+        suitable_backups = {}
         while i < len(items):
             backup, backup_date = items[i]
+
             if backup_date < expire_date:
                 os.remove(backup)
                 dic_backups.pop(backup)
+            elif self.args.keep_one_dump_per_day():
+                older_backup_per_day = next((key for key, value in suitable_backups.items() if value == backup_date.date()), None)
+
+                if older_backup_per_day is not None:
+                    os.remove(older_backup_per_day)
+                    dic_backups.pop(older_backup_per_day)
+                    suitable_backups.pop(older_backup_per_day)
+                
+                suitable_backups.update({backup: backup_date.date()})
+
             i += 1
+
         leave_amount = self.args.dump_leave_amount()
         if(isinstance(leave_amount, int) and leave_amount > -1):
             self.__dumps_leave_N_plus_1(dic_backups,leave_amount)
@@ -1279,12 +1307,42 @@ class LocalCleaner:
 
     def __clean_full_bcks(self, expire_date):
         expired_backups = self.__get_expired_full_backups(expire_date)
+
         for backup in expired_backups:
             os.remove(backup)
+
+        if self.args.keep_one_full_bck_per_day():
+            self.__revome_extra_per_day_full_bcks()
 
         leave_amount = self.args.full_bck_leave_amount()
         if(isinstance(leave_amount, int) and leave_amount > -1):
             self.__full_bcks_leave_N_plus_1(leave_amount)
+
+    def __revome_extra_per_day_full_bcks(self):
+        backups = self.__get_full_backups_with_dates()
+        backups_sorted_by_date = dict(sorted(backups.items(), key=lambda x: x[1]))
+
+        items = list(backups_sorted_by_date.items())
+
+        i = 0
+        suitable_backups = {}
+
+        while i < len(items):
+            backup, backup_date = items[i]
+            if '_backup_manifest' not in backup:
+                older_backup_per_day = next(
+                    (key for key, value in suitable_backups.items() if value == backup_date.date()), None)
+
+                if older_backup_per_day is not None:
+                    os.remove(older_backup_per_day)
+                    backups_sorted_by_date.pop(older_backup_per_day)
+                    suitable_backups.pop(older_backup_per_day)
+
+                suitable_backups.update({backup: backup_date.date()})
+            i += 1
+
+        self.delete_manifest_files_without_backup(backups_sorted_by_date)
+
 
     def __full_bcks_leave_N_plus_1(self, leave_amount: int):
         backups = self.__get_full_backups_with_dates()
@@ -1543,7 +1601,6 @@ class LocalCleaner:
         if delete_it:
             os.rmdir(dir_path)
         return delete_it
-
 
 class Manager:
     __connector = None

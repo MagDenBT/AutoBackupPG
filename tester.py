@@ -148,8 +148,29 @@ def test_pg():
         'custom_dir': r'Sales depart',
         'storage_time': 7*24*60*60,
         'use_simple_way_read_bck_date': True,
+        'dump_leave_amount': 3
+    }
+
+    p_clean_local_full_and_dump_args_with_leave_amount_and_keep_one_per_day = {
+        'path_to_backups': r'C:\backup',
+        'custom_dir': r'Sales depart',
+        'handle_full_bcks': True,
+        'storage_time': 7 * 24 * 60 * 60,
+        'use_simple_way_read_bck_date': True,
+        'local_path_to_wal_files': r'C:\backup\WAL',
         'dump_leave_amount': 3,
-        'full_bck_leave_amount': 3,
+        'full_bck_leave_amount': -1,
+        'keep_one_full_bck_per_day': True,
+        'keep_one_dump_per_day': True,
+    }
+
+    p_clean_local_dump_args_with_leave_amount_and_keep_one_per_day = {
+        'path_to_backups': r'C:\backup',
+        'custom_dir': r'Sales depart',
+        'storage_time': 7 * 24 * 60 * 60,
+        'use_simple_way_read_bck_date': True,
+        'dump_leave_amount': 3,
+        'keep_one_dump_per_day': True
     }
 
 
@@ -193,20 +214,28 @@ def test_pg():
     # m.create_backup(raise_exception=True)
 
 
+
+
     # m = ManagerPostgreSQLBackuper(new_args=p_clean_local_dump_args, clean_backups=True )
     # m.clean_backups(raise_exception=True)
 
     # m = ManagerPostgreSQLBackuper(new_args=p_clean_local_full_and_dump_args, clean_backups=True)
     # m.clean_backups(raise_exception=True)
-    #
 
 
     # m = ManagerPostgreSQLBackuper(new_args=p_clean_local_dump_args_with_leave_amount, clean_backups=True )
     # m.clean_backups(raise_exception=True)
 
-    m = ManagerPostgreSQLBackuper(new_args=p_clean_local_full_and_dump_args_with_leave_amount, clean_backups=True)
+    # m = ManagerPostgreSQLBackuper(new_args=p_clean_local_full_and_dump_args_with_leave_amount, clean_backups=True)
+    # m.clean_backups(raise_exception=True)
+
+
+    # m = ManagerPostgreSQLBackuper(new_args=p_clean_local_dump_args_with_leave_amount_and_keep_one_per_day, clean_backups=True )
+    # m.clean_backups(raise_exception=True)
+
+    m = ManagerPostgreSQLBackuper(new_args=p_clean_local_full_and_dump_args_with_leave_amount_and_keep_one_per_day, clean_backups=True)
     m.clean_backups(raise_exception=True)
-    return
+
 
 
     # m = ManagerPostgreSQLBackuper(new_args=p_sync_full_and_dump_args, sync_backups=True)

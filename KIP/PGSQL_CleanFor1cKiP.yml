@@ -11,5 +11,7 @@ default-values:
   use_simple_way_read_bck_date: True
   dump_leave_amount: 3
   full_bck_leave_amount: 0
+  keep_one_full_bck_per_day: True
+  keep_one_dump_per_day: True
 
 
