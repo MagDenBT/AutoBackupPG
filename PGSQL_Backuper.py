@@ -120,18 +120,18 @@ class Func:
     @staticmethod
     def get_objects_on_aws(s3_client, bucket, verification_path, only_files=True, with_hash=True):
         result = []
+
         try:
-            for obj in s3_client.list_objects(Bucket=bucket)['Contents']:
+            for obj in s3_client.list_objects_v2(Bucket=bucket, Prefix=verification_path)['Contents']:
                 resource_name = obj['Key']
                 if resource_name.endswith('/') and only_files:
                     continue
-                if resource_name.startswith(verification_path):
-                    if with_hash:
-                        md5 = Func.get_md5_aws(s3_client, bucket, resource_name)
-                        item = {'Hash': md5, 'Path': resource_name}
-                    else:
-                        item = resource_name
-                    result.append(item)
+                if with_hash:
+                    md5 = Func.get_md5_aws(s3_client, bucket, resource_name)
+                    item = {'Hash': md5, 'Path': resource_name}
+                else:
+                    item = resource_name
+                result.append(item)
         except Exception:
             a = 1
         return result
@@ -776,7 +776,7 @@ class AWS_Connector:
                     {self._args.local_path_to_wal_files(): self._args.path_to_incr_backup_cloud(for_aws=True)})
 
         with_hash = self._args.with_hash()
-        all_cloud_backups = Func.get_objects_on_aws(self._aws_client, bucket, '', with_hash=with_hash)
+        all_cloud_backups = Func.get_objects_on_aws(self._aws_client, bucket, self._args.path_to_cloud_custom_dir(True), with_hash=with_hash)
         for local_path, cloud_path in local_cloud_paths.items():
             for cloud_backup in all_cloud_backups:
                 if cloud_backup.startswith(cloud_path):
