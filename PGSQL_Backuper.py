@@ -107,8 +107,15 @@ class Func:
     @staticmethod
     def bucket_exists_and_accessible(s3_client, bucket_name):
         message = None
+
+        from botocore.exceptions import (
+            ConnectionClosedError,
+        )
+
         try:
             s3_client.head_bucket(Bucket=bucket_name)
+        except ConnectionClosedError as e:
+            message = e.fmt
         except Exception as e:
             err_code = e.response.get('Error').get('Code')
             if err_code == '404':
@@ -837,8 +844,7 @@ class AWS_Connector:
         from botocore.exceptions import (
             ConnectionClosedError,
             ConnectTimeoutError,
-            ReadTimeoutError,
-            EndpointConnectionError
+            ReadTimeoutError
         )
 
         try:
@@ -846,7 +852,7 @@ class AWS_Connector:
         except (
                 ConnectionClosedError,
                 ReadTimeoutError,
-                ConnectTimeoutError,
+               ConnectTimeoutError,
         ) as e:
             new_max_bandwidth_bytes = self.__get_bandwidth_limit() if self._max_bandwidth_bytes is None else self._max_bandwidth_bytes / 100 * 70
 
