@@ -1,12 +1,4 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-from typing import Any
-
 import lzma
-
-
 import boto3
 import os
 import shutil
@@ -181,6 +173,11 @@ class Func:
 
 class Args(object):
 
+    class DriveNotExistError(Exception):
+        def __init__(self):
+            super().__init__()
+
+
     _path_to_backups: str = None
     _custom_dir: str = None
     _database_name: str = None
@@ -229,6 +226,8 @@ class Args(object):
             try:
                 set_method = self[f'set_{key_mod}']
                 set_method(value)
+            except self.DriveNotExistError as e:
+                raise Exception(f"Параметр {key} - Диск в '{value}' не существует")
             except:
                 continue
 
@@ -281,6 +280,11 @@ class Args(object):
             time_stamp = datetime.datetime.now().strftime('%Y_%m_%d____%H-%M-%S')
 
         return time_stamp + '_' + str(random.randint(1, 100))
+
+    def _disk_exists(self, path):
+        root_path = os.path.abspath(path)
+        root_drive, _ = os.path.splitdrive(root_path)
+        return os.path.exists(root_drive)
 
     def with_hash(self):
         return self._with_hash
@@ -463,15 +467,24 @@ class Args(object):
         self._aws_endpoint_url = str(val)
 
     def set_path_to_backups(self, val: str):
+        if not self._disk_exists(val):
+            raise self.DriveNotExistError()
+
         self._path_to_backups = str(val)
 
     def set_custom_dir(self, val: str):
         self._custom_dir = str(val)
 
     def set_local_path_to_wal_files(self, val: str):
+        if not self._disk_exists(val):
+            raise self.DriveNotExistError()
+
         self._local_path_to_wal_files = str(val)
 
     def set_postgresql_isntance_path(self, val: str):
+        if not self._disk_exists(val):
+            raise self.DriveNotExistError()
+
         self._postgresql_isntance_path = str(val)
 
     def set_postgresql_username(self, val: str):
@@ -485,9 +498,15 @@ class Args(object):
         self._database_name = val
 
     def set_temp_path(self, val: str):
+        if not self._disk_exists(val):
+            raise self.DriveNotExistError()
+
         self._temp_path = str(val)
 
     def set_log_path(self, val: str):
+        if not self._disk_exists(val):
+            raise self.DriveNotExistError()
+
         self._log_path = str(val)
 
     def set_storage_time(self, val: int):
@@ -500,12 +519,18 @@ class Args(object):
         self._aws_chunk_size = int(val)
 
     def set_path_to_7zip(self, val: str):
+        if not self._disk_exists(val):
+            raise self.DriveNotExistError()
+
         self._path_to_7zip = val
 
     def set_handle_full_bcks(self, val: bool):
         self._handle_full_bcks = val
 
     def set_pg_basebackup(self, val: str):
+        if not self._disk_exists(val):
+            raise self.DriveNotExistError()
+
         self._pg_basebackup = val
 
     def set_pg_port(self, val: str):
@@ -721,6 +746,7 @@ class DumpBackuper:
             comm_args.insert(2, self.args.pg_port())
         return comm_args
 
+    # noinspection PyPep8Naming
     def _specific_base_command_through_ROM(self, dump_full_path):
         comm_args = [self.args.pg_dump(),
                      '-U', self.args.postgresql_username(),
@@ -1623,7 +1649,7 @@ class Manager:
             self._args = Args(args=new_args, create_backup=create_backup, clean_backups=clean_backups,
                               sync_backups=sync_backups)
         except Exception as e:
-            self.write_log('backup-', False, str(e))
+            self.write_log('PGSQL_BackuperInit-', False, str(e))
             raise e
 
         if create_backup:

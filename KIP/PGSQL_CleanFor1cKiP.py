@@ -71,7 +71,12 @@ class PGSQL_SyncrFor1cKiP(BaseScenario):
         # fp.close()
 
         write_to_log_file = self.config['write_to_log_file']
-        manager = Manager(new_args=self.config.scenario_context, clean_backups=True)
+        try:
+            manager = Manager(new_args=self.config.scenario_context, clean_backups=True)
+        except Exception as e:
+            error = str(e)
+            global_logger.error( message=error)
+            raise SACError(24, error)
 
         try:
             global_logger.info(message="Начало удаления устаревших бэкапов")

@@ -44,7 +44,13 @@ class PGSQL_CreateFor1cKiP(BaseScenario):
         except:
             global_logger.warning(message=f'Не удалось настроить параметры на ALL_BASES')
 
-        manager = Manager(new_args=self.config.scenario_context, create_backup=True)
+        try:
+            manager = Manager(new_args=self.config.scenario_context, create_backup=True)
+        except Exception as e:
+            error = str(e)
+            global_logger.error(message=error)
+            raise SACError(24, error)
+
         global_logger.info(message="Запущен процесс создания бэкапа PostgreSQL")
         exceptions = []
         for name, backuper in manager.backupers().items():
