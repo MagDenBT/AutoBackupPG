@@ -52,7 +52,7 @@ class PGSQL_CreateFor1cKiP(BaseScenario):
             raise SACError(24, error)
 
         global_logger.info(message="Запущен процесс создания бэкапа PostgreSQL")
-        exceptions = []
+        exceptions = {}
         for name, backuper in manager.backupers().items():
             try:
                 backuper.create_backup()
@@ -60,14 +60,18 @@ class PGSQL_CreateFor1cKiP(BaseScenario):
                 if write_to_log_file:
                     manager.write_log(f'{name}-', True, '')
             except Exception as e:
-                exceptions.append(str(e))
+                exceptions.update({name: str(e)})
                 if write_to_log_file:
                     manager.write_log(f'{name}-', False, str(e))
 
         if len(exceptions) > 0:
-            exc_texts = '\n'.join(exceptions)
+            exc_texts = '\n'.join([f"{key}: {value}" for key, value in exceptions.items()])
+            dump_error = exceptions.get("pg_dump")
+
             if len(exceptions) == len(manager.backupers()):
                 raise SACError(24, f'Бэкапы не созданы! - {exc_texts}')
+            elif dump_error is not None:
+                raise SACError(24, f'Дамп не создан! - {dump_error}')
             else:
                 global_logger.warning(message=f'{exc_texts}. {traceback.format_exc()}')
 
