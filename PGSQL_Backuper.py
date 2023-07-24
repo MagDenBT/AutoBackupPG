@@ -13,7 +13,6 @@ import tzlocal
 from boto3.s3.transfer import TransferConfig
 
 
-
 class Func:
 
     @staticmethod
@@ -97,45 +96,6 @@ class Func:
         return md5sum
 
     @staticmethod
-    def bucket_exists_and_accessible(s3_client, bucket_name):
-        message = None
-
-        from botocore.exceptions import (
-            ConnectionClosedError,
-        )
-
-        try:
-            s3_client.head_bucket(Bucket=bucket_name)
-        except ConnectionClosedError as e:
-            message = e.fmt
-        except Exception as e:
-            err_code = e.response.get('Error').get('Code')
-            if err_code == '404':
-                message = f'Bucket "{bucket_name}" does not exist'
-            elif err_code == '403':
-                message = f'Access to the bucket "{bucket_name}" is forbidden'
-        return message
-
-    @staticmethod
-    def get_objects_on_aws(s3_client, bucket, verification_path, only_files=True, with_hash=True):
-        result = []
-
-        try:
-            for obj in s3_client.list_objects_v2(Bucket=bucket, Prefix=verification_path)['Contents']:
-                resource_name = obj['Key']
-                if resource_name.endswith('/') and only_files:
-                    continue
-                if with_hash:
-                    md5 = Func.get_md5_aws(s3_client, bucket, resource_name)
-                    item = {'Hash': md5, 'Path': resource_name}
-                else:
-                    item = resource_name
-                result.append(item)
-        except Exception:
-            a = 1
-        return result
-
-    @staticmethod
     def optimize_remove_list_dir(empty_dirs):
         empty_dirs = set(empty_dirs)
         result = empty_dirs.copy()
@@ -172,11 +132,9 @@ class Func:
 
 
 class Args(object):
-
     class DriveNotExistError(Exception):
         def __init__(self):
             super().__init__()
-
 
     _path_to_backups: str = None
     _custom_dir: str = None
@@ -226,8 +184,8 @@ class Args(object):
             try:
                 set_method = self[f'set_{key_mod}']
                 set_method(value)
-            except self.DriveNotExistError as e:
-                raise Exception(f"Параметр {key} - Диск в '{value}' не существует")
+            except self.DriveNotExistError:
+                raise Exception(f"Параметр {key} - Корневой диск в '{value}' не существует")
             except:
                 continue
 
@@ -291,7 +249,6 @@ class Args(object):
 
     def set_with_hash(self, val: bool):
         self._with_hash = val
-
 
     # Getters
 
@@ -558,11 +515,10 @@ class Args(object):
         self._keep_one_dump_per_day = val
 
     def set_keep_one_full_bck_per_day(self, val: bool):
-            self._keep_one_full_bck_per_day = val
+        self._keep_one_full_bck_per_day = val
 
 
 class BaseBackuper:
-
     args: Args = None
 
     def __init__(self, args):
@@ -579,13 +535,13 @@ class BaseBackuper:
         my_env["PGPASSWORD"] = self.args.postgresql_password()
         use_ext_archiver = self.args.full_bck_use_ext_archiver()
         comm_args = [self.args.pg_basebackup(),
-             '-D', self.args.temp_path(),
-             '-X', 'fetch',
-             '-F', 'tar',
-             '--label', self.args.label(),
-             '--no-password',
-             '--username', self.args.postgresql_username(),
-             ]
+                     '-D', self.args.temp_path(),
+                     '-X', 'fetch',
+                     '-F', 'tar',
+                     '--label', self.args.label(),
+                     '--no-password',
+                     '--username', self.args.postgresql_username(),
+                     ]
 
         if use_ext_archiver:
             arch = f'{self.args.path_to_7zip()}\\7za.exe'
@@ -638,7 +594,6 @@ class BaseBackuper:
 
 
 class DumpBackuper:
-
     args = None
 
     def __init__(self, args: Args):
@@ -653,7 +608,6 @@ class DumpBackuper:
         all_bases = self.args.database_name() is None or self.args.database_name() == ""
 
         base_name = "all_bases" if all_bases else self.args.database_name()
-
 
         dump_name = f'{base_name}_{self.args.label()}.dump'
         dump_full_path = f'{self.args.path_to_dump_local()}\\{dump_name}'
@@ -672,7 +626,9 @@ class DumpBackuper:
             if not os.path.exists(archiver):
                 raise Exception(f'{archiver} - архиватор не найден')
 
-        comm_args = self._all_bases_command_through_stdout(archiver, dump_full_path) if all_bases else self._specific_base_command_through_stdout(archiver, dump_full_path)
+        comm_args = self._all_bases_command_through_stdout(archiver,
+                                                           dump_full_path) if all_bases else self._specific_base_command_through_stdout(
+            archiver, dump_full_path)
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self.args.postgresql_password()
         try:
@@ -719,7 +675,8 @@ class DumpBackuper:
         else:
             dump_full_path = finish_dump_path
 
-        comm_args = self._all_bases_command_through_ROM(dump_full_path) if all_bases else self._specific_base_command_through_ROM(dump_full_path)
+        comm_args = self._all_bases_command_through_ROM(
+            dump_full_path) if all_bases else self._specific_base_command_through_ROM(dump_full_path)
 
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self.args.postgresql_password()
@@ -772,13 +729,11 @@ class DumpBackuper:
 
 
 class AWS_Connector:
-
     _aws_client = None
     _args: Args = None
     _cloud_backups = []
 
-
-    def __init__(self, args: Args, max_bandwidth_bytes = None, threshold_bandwidth = 500*1000/8):
+    def __init__(self, args: Args, max_bandwidth_bytes=None, threshold_bandwidth=500 * 1000 / 8):
         self._args = args
         session = boto3.session.Session()
         self._aws_client = session.client(
@@ -791,10 +746,11 @@ class AWS_Connector:
         self._threshold_bandwidth = threshold_bandwidth
 
     def sync_with_cloud(self):
-        bucket = self._args.aws_bucket()
-        message = Func.bucket_exists_and_accessible(self._aws_client, bucket)
-        if message is not None:
-            raise Exception(message)
+
+        if self._local_time_is_too_skewed(): raise Exception("Локальное время слишком сильно отличается от облачного")
+
+        error_message = self._bucket_exists_and_accessible()
+        if error_message is not None: raise Exception(error_message)
 
         local_cloud_paths = {}
         if Func.contain_files(self._args.path_to_dump_local()):
@@ -809,7 +765,7 @@ class AWS_Connector:
                     {self._args.local_path_to_wal_files(): self._args.path_to_incr_backup_cloud(for_aws=True)})
 
         with_hash = self._args.with_hash()
-        all_cloud_backups = Func.get_objects_on_aws(self._aws_client, bucket, self._args.path_to_cloud_custom_dir(True), with_hash=with_hash)
+        all_cloud_backups = self._get_objects_on_aws(with_hash=with_hash)
         for local_path, cloud_path in local_cloud_paths.items():
             for cloud_backup in all_cloud_backups:
                 if cloud_backup.startswith(cloud_path):
@@ -823,7 +779,56 @@ class AWS_Connector:
             raise Exception(
                 f'Traces of a ransomware VIRUS may have been found. The following files have an unknown extension -{corrupt_files}')
 
-    def _get_corrupt_files(self, local_cloud_paths:{}):
+    def _local_time_is_too_skewed(self):
+
+        from botocore.exceptions import ClientError
+
+        try:
+            self._aws_client.list_objects(Bucket=self._args.aws_bucket())
+        except ClientError as e:
+            return e.response.get('Error').get('Code') == 'RequestTimeTooSkewed'
+        except:
+            return False
+
+    def _bucket_exists_and_accessible(self):
+
+        from botocore.exceptions import (
+            ConnectionClosedError,
+        )
+
+        error_message = None
+        try:
+            self._aws_client.head_bucket(Bucket=self._args.aws_bucket())
+        except ConnectionClosedError as e:
+            error_message = e.fmt
+        except Exception as e:
+            err_code = e.response.get('Error').get('Code')
+            if err_code == '404':
+                error_message = f'Bucket "{self._args.aws_bucket()}" does not exist'
+            elif err_code == '403':
+                error_message = f'Access to the bucket "{self._args.aws_bucket()}" is forbidden'
+        return error_message
+
+    def _get_objects_on_aws(self, only_files=True, with_hash=True):
+        result = []
+
+        try:
+            for obj in self._aws_client.list_objects_v2(Bucket=self._args.aws_bucket(), Prefix=self._args.path_to_cloud_custom_dir(True))[
+                'Contents']:
+                resource_name = obj['Key']
+                if resource_name.endswith('/') and only_files:
+                    continue
+                if with_hash:
+                    md5 = Func.get_md5_aws(self._aws_client, self._args.aws_bucket(), resource_name)
+                    item = {'Hash': md5, 'Path': resource_name}
+                else:
+                    item = resource_name
+                result.append(item)
+        except Exception:
+            a = 1
+        return result
+
+    def _get_corrupt_files(self, local_cloud_paths: {}):
         loca_files = []
         for local_path, cloud_path in local_cloud_paths.items():
             loca_files.extend(Func.get_objects_list_on_disk(local_path, only_files=True))
@@ -859,13 +864,14 @@ class AWS_Connector:
             return 'Нет новых файлов для выгрузки'
 
         for backup_local, savefile in to_upload.items():
-                self._upload_file(backup_local, savefile)
+            self._upload_file(backup_local, savefile)
 
         return ''
 
     def _upload_file(self, local_file, target_file, adjust_bandwidth=True):
 
-        upload_config = TransferConfig(multipart_chunksize=self._args.aws_chunk_size(), max_bandwidth=self._max_bandwidth_bytes)
+        upload_config = TransferConfig(multipart_chunksize=self._args.aws_chunk_size(),
+                                       max_bandwidth=self._max_bandwidth_bytes)
 
         from botocore.exceptions import (
             ConnectionClosedError,
@@ -878,7 +884,7 @@ class AWS_Connector:
         except (
                 ConnectionClosedError,
                 ReadTimeoutError,
-               ConnectTimeoutError,
+                ConnectTimeoutError,
         ) as e:
             new_max_bandwidth_bytes = self._get_bandwidth_limit() if self._max_bandwidth_bytes is None else self._max_bandwidth_bytes / 100 * 70
 
@@ -887,7 +893,8 @@ class AWS_Connector:
                     self._max_bandwidth_bytes = new_max_bandwidth_bytes
                     self._upload_file(local_file, target_file, True)
                 else:
-                    raise Exception(f"Нестабильный интернет. Автопонижение скорости выгрузки до {self._max_bandwidth_bytes / 125} Кбит/с не решило проблему")
+                    raise Exception(
+                        f"Нестабильный интернет. Автопонижение скорости выгрузки до {self._max_bandwidth_bytes / 125} Кбит/с не решило проблему")
 
     def _compute_files_to_upload(self, local_backups: [], root_local_path, path_cloud, with_hash=False):
         if with_hash:
@@ -896,7 +903,7 @@ class AWS_Connector:
             return self._compute_files_to_upload_no_hash(local_backups, root_local_path, path_cloud)
 
     def _get_bandwidth_limit(self):
-        return 9 * 1000 * 1000 / 8 #Speed - 9Mbit/s
+        return 9 * 1000 * 1000 / 8  # Speed - 9Mbit/s
 
     def _compute_files_to_upload_no_hash(self, local_backups: [], root_local_path, path_cloud):
         result = {}
@@ -985,11 +992,9 @@ class AWS_Connector:
         return result
 
     def _delete_empty_dirs_on_aws(self):
-        verification_path = self._args.path_to_cloud_custom_dir(for_aws=True)
-        empty_dirs = self._empty_aws_cloud_dirs(verification_path)
-
+        empty_dirs = self._empty_aws_cloud_dirs()
         try:
-            empty_dirs.remove(verification_path + '/')
+            empty_dirs.remove(self._args.path_to_cloud_custom_dir(True) + '/')
         except KeyError:
             a = 1
 
@@ -1001,9 +1006,8 @@ class AWS_Connector:
 
         self._aws_client.delete_objects(Bucket=self._args.aws_bucket(), Delete={'Objects': for_deletion})
 
-    def _empty_aws_cloud_dirs(self, verification_path):
-        obj_on_aws = Func.get_objects_on_aws(self._aws_client, self._args.aws_bucket(),
-                                             verification_path, only_files=False, with_hash=False)
+    def _empty_aws_cloud_dirs(self):
+        obj_on_aws = self._get_objects_on_aws(only_files=False, with_hash=False)
         obj_on_aws = set(obj_on_aws)
         result = obj_on_aws.copy()
 
@@ -1312,20 +1316,21 @@ class LocalCleaner:
                 os.remove(backup)
                 dic_backups.pop(backup)
             elif self.args.keep_one_dump_per_day():
-                older_backup_per_day = next((key for key, value in suitable_backups.items() if value == backup_date.date()), None)
+                older_backup_per_day = next(
+                    (key for key, value in suitable_backups.items() if value == backup_date.date()), None)
 
                 if older_backup_per_day is not None:
                     os.remove(older_backup_per_day)
                     dic_backups.pop(older_backup_per_day)
                     suitable_backups.pop(older_backup_per_day)
-                
+
                 suitable_backups.update({backup: backup_date.date()})
 
             i += 1
 
         leave_amount = self.args.dump_leave_amount()
-        if(isinstance(leave_amount, int) and leave_amount > -1):
-            self.__dumps_leave_N_plus_1(dic_backups,leave_amount)
+        if (isinstance(leave_amount, int) and leave_amount > -1):
+            self.__dumps_leave_N_plus_1(dic_backups, leave_amount)
 
     def __dumps_leave_N_plus_1(self, sorted_backups: {}, leave_amount: int):
         i = 0
@@ -1347,7 +1352,7 @@ class LocalCleaner:
             self.__revome_extra_per_day_full_bcks()
 
         leave_amount = self.args.full_bck_leave_amount()
-        if(isinstance(leave_amount, int) and leave_amount > -1):
+        if (isinstance(leave_amount, int) and leave_amount > -1):
             self.__full_bcks_leave_N_plus_1(leave_amount)
 
     def __revome_extra_per_day_full_bcks(self):
@@ -1374,7 +1379,6 @@ class LocalCleaner:
             i += 1
 
         self.delete_manifest_files_without_backup(backups_sorted_by_date)
-
 
     def __full_bcks_leave_N_plus_1(self, leave_amount: int):
         backups = self.__get_full_backups_with_dates()
@@ -1410,7 +1414,7 @@ class LocalCleaner:
         mask = '_backup_manifest'
         second_mask = '_base.'
         backups = Func.get_objects_list_on_disk(self.args.full_path_to_full_backup_local(), mask=mask,
-                                                  or_second_mask=second_mask, only_files=True)
+                                                or_second_mask=second_mask, only_files=True)
         result = {}
         for file in backups:
             file_name = os.path.basename(file)
@@ -1450,13 +1454,14 @@ class LocalCleaner:
             if bck_date is not None and bck_date < expire_date:
                 current_mask = mask if mask in file_name else second_mask
                 portion_if_has_subdir = Func.get_objects_list_on_disk(os.path.dirname(file),
-                                                        mask=file_name.split(current_mask)[0], only_files=True)
+                                                                      mask=file_name.split(current_mask)[0],
+                                                                      only_files=True)
                 result.extend(portion_if_has_subdir)
 
         return list(set(result))
 
     def __read_full_bck_create_date(self, backup: str):
-        if(self.args.use_simple_way_read_bck_date()):
+        if (self.args.use_simple_way_read_bck_date()):
             return datetime.datetime.fromtimestamp(os.path.getmtime(backup), self.__get_local_zone())
 
         date_str = None
@@ -1636,7 +1641,6 @@ class LocalCleaner:
 
 
 class Manager:
-
     _connector = None
     _backupers = {}
     _cleaner = None
@@ -1658,7 +1662,7 @@ class Manager:
                 self._backupers.update({'pg_basebackup': BaseBackuper(self._args)})
 
         if sync_backups:
-                self._connector = AWS_Connector(self._args)
+            self._connector = AWS_Connector(self._args)
         if clean_backups:
             self._cleaner = LocalCleaner(self._args)
 
@@ -1730,6 +1734,7 @@ class Manager:
 
     def backupers(self):
         return self._backupers
+
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
