@@ -49,7 +49,7 @@ class PGSQL_CreateFor1cKiP(BaseScenario):
         exceptions = []
         for name, backuper in manager.backupers().items():
             try:
-                backuper._create_backup()
+                backuper.create_backup()
                 global_logger.info(message=f'{name}- успех!')
                 if write_to_log_file:
                     manager.write_log(f'{name}-', True, '')

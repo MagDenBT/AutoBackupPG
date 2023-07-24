@@ -181,46 +181,46 @@ class Func:
 
 class Args(object):
 
-    __path_to_backups: str = None
-    __custom_dir: str = None
-    __database_name: str = None
-    __use_temp_dump: bool = None
-    __local_path_to_wal_files: str = None
-    __handle_full_bcks: bool = None
-    __pg_basebackup: str = None
-    __use_simple_way_read_bck_date: bool = None
-    __path_to_7zip: str = None
+    _path_to_backups: str = None
+    _custom_dir: str = None
+    _database_name: str = None
+    _use_temp_dump: bool = None
+    _local_path_to_wal_files: str = None
+    _handle_full_bcks: bool = None
+    _pg_basebackup: str = None
+    _use_simple_way_read_bck_date: bool = None
+    _path_to_7zip: str = None
 
-    __dump_leave_amount: int = None
-    __full_bck_leave_amount: int = None
-    __keep_one_dump_per_day: bool = None
-    __keep_one_full_bck_per_day: bool = None
+    _dump_leave_amount: int = None
+    _full_bck_leave_amount: int = None
+    _keep_one_dump_per_day: bool = None
+    _keep_one_full_bck_per_day: bool = None
 
-    __postgresql_isntance_path: str = None
-    __postgresql_username: str = None
-    __postgresql_password: str = None
-    __pg_port: str = None
+    _postgresql_isntance_path: str = None
+    _postgresql_username: str = None
+    _postgresql_password: str = None
+    _pg_port: str = None
 
-    __temp_path: str = None
-    __storage_time: int = None
-    __log_path: str = None
+    _temp_path: str = None
+    _storage_time: int = None
+    _log_path: str = None
 
-    __aws_access_key_id: str = None
-    __aws_secret_access_key: str = None
-    __aws_endpoint_url: str = None
-    __aws_bucket: str = None
-    __aws_chunk_size: int = None
-    __with_hash: bool = None
+    _aws_access_key_id: str = None
+    _aws_secret_access_key: str = None
+    _aws_endpoint_url: str = None
+    _aws_bucket: str = None
+    _aws_chunk_size: int = None
+    _with_hash: bool = None
     # Internal
-    __label: str = None
+    _label: str = None
 
     def __getitem__(self, item):
         return getattr(self, item)
 
     def __init__(self, args=None, create_backup=False, clean_backups=False, sync_backups=False):
         self.set_params(args, True)
-        req_arg = self.__get_args_for_check(create_backup=create_backup,
-                                            clean_backups=clean_backups, sync_backups=sync_backups)
+        req_arg = self._get_args_for_check(create_backup=create_backup,
+                                           clean_backups=clean_backups, sync_backups=sync_backups)
         self.check_params(req_arg)
 
     def set_params(self, args=None, in_lower_case=True):
@@ -249,8 +249,8 @@ class Args(object):
         if _error:
             raise Exception(message)
 
-    def __get_args_for_check(self, create_backup=False,
-                             clean_backups=False, sync_backups=False):
+    def _get_args_for_check(self, create_backup=False,
+                            clean_backups=False, sync_backups=False):
         req_args = [
             'path_to_backups',
             'custom_dir',
@@ -283,44 +283,44 @@ class Args(object):
         return time_stamp + '_' + str(random.randint(1, 100))
 
     def with_hash(self):
-        return self.__with_hash
+        return self._with_hash
 
     def set_with_hash(self, val: bool):
-        self.__with_hash = val
+        self._with_hash = val
 
 
     # Getters
 
     def aws_chunk_size(self):
-        if self.__aws_chunk_size is not int or self.__aws_chunk_size < 1:
+        if self._aws_chunk_size is not int or self._aws_chunk_size < 1:
             return 8388608
-        return self.__aws_chunk_size
+        return self._aws_chunk_size
 
     def aws_bucket(self):
-        return self.__aws_bucket
+        return self._aws_bucket
 
     def aws_access_key_id(self):
-        return self.__aws_access_key_id
+        return self._aws_access_key_id
 
     def aws_secret_access_key(self):
-        return self.__aws_secret_access_key
+        return self._aws_secret_access_key
 
     def aws_endpoint_url(self):
-        if self.__aws_endpoint_url is None or self.__aws_endpoint_url == '':
+        if self._aws_endpoint_url is None or self._aws_endpoint_url == '':
             var = 'https://storage.yandexcloud.net'
-            self.__aws_endpoint_url = var
-        return self.__aws_endpoint_url
+            self._aws_endpoint_url = var
+        return self._aws_endpoint_url
 
     def path_to_backups(self):
-        if not self.__path_to_backups.endswith('\\'):
-            self.__path_to_backups = self.__path_to_backups + '\\'
-        return self.__path_to_backups
+        if not self._path_to_backups.endswith('\\'):
+            self._path_to_backups = self._path_to_backups + '\\'
+        return self._path_to_backups
 
     def custom_dir(self, for_aws=False):
         if for_aws:
-            return self.aws_correct_folder_name(self.__custom_dir)
+            return self.aws_correct_folder_name(self._custom_dir)
         else:
-            return self.__custom_dir
+            return self._custom_dir
 
     def full_bp_dir(self, for_aws=False):
         ldir = "Full"
@@ -337,26 +337,26 @@ class Args(object):
             return ldir
 
     def local_path_to_wal_files(self):
-        return self.__local_path_to_wal_files
+        return self._local_path_to_wal_files
 
     def postgresql_isntance_path(self):
-        if not self.__postgresql_isntance_path.endswith('\\'):
-            self.__postgresql_isntance_path = self.__postgresql_isntance_path + '\\'
-        return self.__postgresql_isntance_path
+        if not self._postgresql_isntance_path.endswith('\\'):
+            self._postgresql_isntance_path = self._postgresql_isntance_path + '\\'
+        return self._postgresql_isntance_path
 
     def postgresql_username(self):
-        return self.__postgresql_username
+        return self._postgresql_username
 
     def postgresql_password(self):
-        return self.__postgresql_password
+        return self._postgresql_password
 
     def database_name(self):
-        return self.__database_name
+        return self._database_name
 
     def pg_basebackup(self):
-        if self.__pg_basebackup is None or self.__pg_basebackup == '':
-            self.__pg_basebackup = self.postgresql_isntance_path() + 'bin\\pg_basebackup.exe'
-        return self.__pg_basebackup
+        if self._pg_basebackup is None or self._pg_basebackup == '':
+            self._pg_basebackup = self.postgresql_isntance_path() + 'bin\\pg_basebackup.exe'
+        return self._pg_basebackup
 
     def pg_dump(self):
         return self.postgresql_isntance_path() + 'bin\\pg_dump.exe'
@@ -365,17 +365,17 @@ class Args(object):
         return self.postgresql_isntance_path() + 'bin\\pg_dumpall.exe'
 
     def temp_path(self):
-        if self.__temp_path is None or self.__temp_path == '':
-            self.__temp_path = './temp'  # The path to the temporary directory for full backup
-        return self.__temp_path
+        if self._temp_path is None or self._temp_path == '':
+            self._temp_path = './temp'  # The path to the temporary directory for full backup
+        return self._temp_path
 
     def log_path(self):
-        if self.__log_path is None or self.__log_path == '':
-            self.__log_path = './PostgreSQLBackuperLogs'  # The path to the script logs
-        return self.__log_path
+        if self._log_path is None or self._log_path == '':
+            self._log_path = './PostgreSQLBackuperLogs'  # The path to the script logs
+        return self._log_path
 
     def storage_time(self):
-        return self.__storage_time
+        return self._storage_time
 
     def path_to_dump_local(self):
         # The path to the permanent  directory for full backup
@@ -406,9 +406,9 @@ class Args(object):
         return path
 
     def label(self):
-        if self.__label is None or self.__label == '':
-            self.__label = self._generate_label()
-        return self.__label
+        if self._label is None or self._label == '':
+            self._label = self._generate_label()
+        return self._label
 
     def path_to_cloud_custom_dir(self, for_aws=False):
         path = self.custom_dir(for_aws)
@@ -417,111 +417,111 @@ class Args(object):
         return path
 
     def full_bck_use_ext_archiver(self):
-        return self.__path_to_7zip is not None and self.__path_to_7zip != ''
+        return self._path_to_7zip is not None and self._path_to_7zip != ''
 
     def archive_dump(self):
-        return self.__path_to_7zip is not None and self.__path_to_7zip != ''
+        return self._path_to_7zip is not None and self._path_to_7zip != ''
 
     def path_to_7zip(self):
-        return self.__path_to_7zip
+        return self._path_to_7zip
 
     def handle_full_bcks(self):
-        return self.__handle_full_bcks
+        return self._handle_full_bcks
 
     def handle_wal_files(self):
-        return self.handle_full_bcks() and self.__local_path_to_wal_files is not None and self.__local_path_to_wal_files != ''
+        return self.handle_full_bcks() and self._local_path_to_wal_files is not None and self._local_path_to_wal_files != ''
 
     def pg_port(self):
-        return self.__pg_port
+        return self._pg_port
 
     def use_simple_way_read_bck_date(self):
-        return self.__use_simple_way_read_bck_date
+        return self._use_simple_way_read_bck_date
 
     def use_temp_dump(self):
-        return self.__use_temp_dump
+        return self._use_temp_dump
 
     def dump_leave_amount(self):
-        return self.__dump_leave_amount
+        return self._dump_leave_amount
 
     def full_bck_leave_amount(self):
-        return self.__full_bck_leave_amount
+        return self._full_bck_leave_amount
 
     def keep_one_dump_per_day(self):
-        return self.__keep_one_dump_per_day
+        return self._keep_one_dump_per_day
 
     def keep_one_full_bck_per_day(self):
-        return self.__keep_one_full_bck_per_day
+        return self._keep_one_full_bck_per_day
 
     # Setters
     def set_aws_access_key_id(self, val: str):
-        self.__aws_access_key_id = str(val)
+        self._aws_access_key_id = str(val)
 
     def set_aws_secret_access_key(self, val: str):
-        self.__aws_secret_access_key = str(val)
+        self._aws_secret_access_key = str(val)
 
     def set_aws_endpoint_url(self, val: str):
-        self.__aws_endpoint_url = str(val)
+        self._aws_endpoint_url = str(val)
 
     def set_path_to_backups(self, val: str):
-        self.__path_to_backups = str(val)
+        self._path_to_backups = str(val)
 
     def set_custom_dir(self, val: str):
-        self.__custom_dir = str(val)
+        self._custom_dir = str(val)
 
     def set_local_path_to_wal_files(self, val: str):
-        self.__local_path_to_wal_files = str(val)
+        self._local_path_to_wal_files = str(val)
 
     def set_postgresql_isntance_path(self, val: str):
-        self.__postgresql_isntance_path = str(val)
+        self._postgresql_isntance_path = str(val)
 
     def set_postgresql_username(self, val: str):
-        self.__postgresql_username = str(val)
+        self._postgresql_username = str(val)
 
     def set_postgresql_password(self, val: str):
-        self.__postgresql_password = str(val)
+        self._postgresql_password = str(val)
 
     def set_database_name(self, val: str):
-        self.__postgresql_password = str(val)
-        self.__database_name = val
+        self._postgresql_password = str(val)
+        self._database_name = val
 
     def set_temp_path(self, val: str):
-        self.__temp_path = str(val)
+        self._temp_path = str(val)
 
     def set_log_path(self, val: str):
-        self.__log_path = str(val)
+        self._log_path = str(val)
 
     def set_storage_time(self, val: int):
-        self.__storage_time = int(val)
+        self._storage_time = int(val)
 
     def set_aws_bucket(self, val: str):
-        self.__aws_bucket = str(val)
+        self._aws_bucket = str(val)
 
     def set_aws_chunk_size(self, val: int):
-        self.__aws_chunk_size = int(val)
+        self._aws_chunk_size = int(val)
 
     def set_path_to_7zip(self, val: str):
-        self.__path_to_7zip = val
+        self._path_to_7zip = val
 
     def set_handle_full_bcks(self, val: bool):
-        self.__handle_full_bcks = val
+        self._handle_full_bcks = val
 
     def set_pg_basebackup(self, val: str):
-        self.__pg_basebackup = val
+        self._pg_basebackup = val
 
     def set_pg_port(self, val: str):
-        self.__pg_port = str(val)
+        self._pg_port = str(val)
 
     def set_use_simple_way_read_bck_date(self, val: bool):
-        self.__use_simple_way_read_bck_date = val
+        self._use_simple_way_read_bck_date = val
 
     def set_use_temp_dump(self, val: bool):
-        self.__use_temp_dump = val
+        self._use_temp_dump = val
 
     def set_dump_leave_amount(self, val: int):
-        self.__dump_leave_amount = val
+        self._dump_leave_amount = val
 
     def set_full_bck_leave_amount(self, val: int):
-        self.__full_bck_leave_amount = val
+        self._full_bck_leave_amount = val
 
     def aws_correct_folder_name(self, _dir: str):
         valid_characters = '0123456789qwertyuiopasdfghjklzxcvbnmйцукенгшщзхъфывапролджэячсмитьбюё'
@@ -530,19 +530,20 @@ class Args(object):
         return _dir
 
     def set_keep_one_dump_per_day(self, val: bool):
-        self.__keep_one_dump_per_day = val
+        self._keep_one_dump_per_day = val
 
     def set_keep_one_full_bck_per_day(self, val: bool):
-            self.__keep_one_full_bck_per_day = val
+            self._keep_one_full_bck_per_day = val
 
 
 class BaseBackuper:
+
     args: Args = None
 
     def __init__(self, args):
         self.args = args
 
-    def _create_backup(self):
+    def create_backup(self):
         Func.clear_dir(self.args.temp_path())
 
         if not os.path.exists(self.args.pg_basebackup()):
@@ -579,14 +580,14 @@ class BaseBackuper:
         text_error = process.stderr.decode(errors='replace')
         if text_error == "":
             if use_ext_archiver:
-                self.__archive_with_external_tool()
+                self._archive_with_external_tool()
             else:
-                self.__move_to_permanent_dir()
+                self._move_to_permanent_dir()
                 Func.clear_dir(self.args.temp_path())
         else:
             raise Exception(text_error)
 
-    def __archive_with_external_tool(self):
+    def _archive_with_external_tool(self):
         label = self.args.label()
         comm_args = f'"{self.args.path_to_7zip()}\\7za.exe" a -ttar -so -sdel -an "{self.args.temp_path()}\\"* | "{self.args.path_to_7zip()}\\7za.exe" a -si "{self.args.full_path_to_full_backup_local()}\\{label}__base.txz"'
 
@@ -597,7 +598,7 @@ class BaseBackuper:
         except Exception as e:
             raise e
 
-    def __move_to_permanent_dir(self, create_subdir=True):
+    def _move_to_permanent_dir(self, create_subdir=True):
         label = self.args.label()
         files = Func.get_objects_list_on_disk(self.args.temp_path())
         target_dir = f'{self.args.full_path_to_full_backup_local()}\\{label}' if create_subdir else self.args.full_path_to_full_backup_local()
@@ -612,12 +613,13 @@ class BaseBackuper:
 
 
 class DumpBackuper:
+
     args = None
 
     def __init__(self, args: Args):
         self.args = args
 
-    def _create_backup(self):
+    def create_backup(self):
 
         if not os.path.exists(self.args.pg_dump()):
             raise Exception(
@@ -634,19 +636,18 @@ class DumpBackuper:
             os.makedirs(self.args.path_to_dump_local())
 
         if self.args.use_temp_dump():
-            self.__create_through_ROM(dump_full_path, all_bases)
+            self._create_through_ROM(dump_full_path, all_bases)
         else:
-            self.__create_through_stdout(dump_full_path, all_bases)
+            self._create_through_stdout(dump_full_path, all_bases)
 
-
-    def __create_through_stdout(self, dump_full_path, all_bases: bool):
+    def _create_through_stdout(self, dump_full_path, all_bases: bool):
         archiver = None
         if self.args.archive_dump():
             archiver = f'{self.args.path_to_7zip()}\\7za.exe'
             if not os.path.exists(archiver):
                 raise Exception(f'{archiver} - архиватор не найден')
 
-        comm_args = self.__all_bases_command_through_stdout(archiver, dump_full_path) if all_bases else self.__specific_base_command_through_stdout(archiver, dump_full_path)
+        comm_args = self._all_bases_command_through_stdout(archiver, dump_full_path) if all_bases else self._specific_base_command_through_stdout(archiver, dump_full_path)
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self.args.postgresql_password()
         try:
@@ -660,8 +661,7 @@ class DumpBackuper:
         if pg_error != '':
             raise Exception(pg_error)
 
-
-    def __all_bases_command_through_stdout(self, archiver, dump_full_path):
+    def _all_bases_command_through_stdout(self, archiver, dump_full_path):
         port_arg = ''
         if self.args.pg_port() is not None and self.args.pg_port() != '':
             port_arg = f' -p {self.args.pg_port()}'
@@ -672,7 +672,7 @@ class DumpBackuper:
             comm_args += f' > "{dump_full_path}"'
         return comm_args
 
-    def __specific_base_command_through_stdout(self, archiver, dump_full_path):
+    def _specific_base_command_through_stdout(self, archiver, dump_full_path):
         port_arg = ''
         if self.args.pg_port() is not None and self.args.pg_port() != '':
             port_arg = f' -p {self.args.pg_port()}'
@@ -683,8 +683,7 @@ class DumpBackuper:
             comm_args += f' > "{dump_full_path}"'
         return comm_args
 
-
-    def __create_through_ROM(self, finish_dump_path, all_bases: bool):
+    def _create_through_ROM(self, finish_dump_path, all_bases: bool):
         arch = f'{self.args.path_to_7zip()}\\7za.exe'
         if self.args.archive_dump():
             if not os.path.exists(arch):
@@ -695,7 +694,7 @@ class DumpBackuper:
         else:
             dump_full_path = finish_dump_path
 
-        comm_args = self.__all_bases_command_through_ROM(dump_full_path) if all_bases else self.__specific_base_command_through_ROM(dump_full_path)
+        comm_args = self._all_bases_command_through_ROM(dump_full_path) if all_bases else self._specific_base_command_through_ROM(dump_full_path)
 
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self.args.postgresql_password()
@@ -708,11 +707,11 @@ class DumpBackuper:
         text_error = process.stderr.decode(errors='replace')
         if text_error == "":
             if self.args.archive_dump():
-                self.__archive_with_external_tool(arch, dump_full_path, finish_dump_path)
+                self._archive_with_external_tool(arch, dump_full_path, finish_dump_path)
         else:
             raise Exception(text_error)
 
-    def __all_bases_command_through_ROM(self, dump_full_path):
+    def _all_bases_command_through_ROM(self, dump_full_path):
         comm_args = [self.args.pg_dumpall(),
                      '-U', self.args.postgresql_username(),
                      '-f', dump_full_path
@@ -722,7 +721,7 @@ class DumpBackuper:
             comm_args.insert(2, self.args.pg_port())
         return comm_args
 
-    def __specific_base_command_through_ROM(self, dump_full_path):
+    def _specific_base_command_through_ROM(self, dump_full_path):
         comm_args = [self.args.pg_dump(),
                      '-U', self.args.postgresql_username(),
                      '-Fc',
@@ -734,7 +733,7 @@ class DumpBackuper:
             comm_args.insert(2, self.args.pg_port())
         return comm_args
 
-    def __archive_with_external_tool(self, arch_path, source, target):
+    def _archive_with_external_tool(self, arch_path, source, target):
         comm_args = f'"{arch_path}" a -sdel "{target}.xz" "{source}"'
         try:
             subprocess.check_output(comm_args, stderr=subprocess.PIPE, shell=True)
@@ -747,6 +746,7 @@ class DumpBackuper:
 
 
 class AWS_Connector:
+
     _aws_client = None
     _args: Args = None
     _cloud_backups = []
@@ -764,7 +764,7 @@ class AWS_Connector:
         self._max_bandwidth_bytes = max_bandwidth_bytes
         self._threshold_bandwidth = threshold_bandwidth
 
-    def _sync_with_cloud(self):
+    def sync_with_cloud(self):
         bucket = self._args.aws_bucket()
         message = Func.bucket_exists_and_accessible(self._aws_client, bucket)
         if message is not None:
@@ -789,7 +789,7 @@ class AWS_Connector:
                 if cloud_backup.startswith(cloud_path):
                     self._cloud_backups.append(cloud_backup)
 
-        corrupt_files = self.__get_corrupt_files(local_cloud_paths)
+        corrupt_files = self._get_corrupt_files(local_cloud_paths)
         if len(corrupt_files) == 0:
             self._clean_cloud(local_cloud_paths, with_hash)
         self._upload_to_cloud(local_cloud_paths, with_hash)
@@ -797,20 +797,20 @@ class AWS_Connector:
             raise Exception(
                 f'Traces of a ransomware VIRUS may have been found. The following files have an unknown extension -{corrupt_files}')
 
-    def __get_corrupt_files(self, local_cloud_paths:{}):
+    def _get_corrupt_files(self, local_cloud_paths:{}):
         loca_files = []
         for local_path, cloud_path in local_cloud_paths.items():
             loca_files.extend(Func.get_objects_list_on_disk(local_path, only_files=True))
         corrupt_files = []
         for file in loca_files:
-            if not self.__check_extension(file):
+            if not self._check_extension(file):
                 corrupt_files.append(file)
         return corrupt_files
 
-    def __check_extension(self, path: str):
+    def _check_extension(self, path: str):
         arr = os.path.splitext(path)
         exten = arr[len(arr) - 1]
-        if exten != '' and exten not in self.__get_valid_extensions():
+        if exten != '' and exten not in self._get_valid_extensions():
             return False
         elif exten == '' and not path.endswith('backup_manifest'):
             try:
@@ -819,25 +819,25 @@ class AWS_Connector:
                 return False
         return True
 
-    def __get_valid_extensions(self):
+    def _get_valid_extensions(self):
         return ['.gz', '.xz', '.txz', '.backup', '.dump']
 
     def _upload_to_cloud(self, local_cloud_paths: {}, with_hash):
         to_upload = {}
         for local_path, cloud_path in local_cloud_paths.items():
             local_backups = Func.get_objects_list_on_disk(local_path)
-            result = self.__compute_files_to_upload(local_backups, local_path, cloud_path, with_hash)
+            result = self._compute_files_to_upload(local_backups, local_path, cloud_path, with_hash)
             to_upload.update(result)
 
         if len(to_upload) == 0:
             return 'Нет новых файлов для выгрузки'
 
         for backup_local, savefile in to_upload.items():
-                self.__upload_file(backup_local, savefile )
+                self._upload_file(backup_local, savefile)
 
         return ''
 
-    def __upload_file(self, local_file, target_file, adjust_bandwidth=True):
+    def _upload_file(self, local_file, target_file, adjust_bandwidth=True):
 
         upload_config = TransferConfig(multipart_chunksize=self._args.aws_chunk_size(), max_bandwidth=self._max_bandwidth_bytes)
 
@@ -854,25 +854,25 @@ class AWS_Connector:
                 ReadTimeoutError,
                ConnectTimeoutError,
         ) as e:
-            new_max_bandwidth_bytes = self.__get_bandwidth_limit() if self._max_bandwidth_bytes is None else self._max_bandwidth_bytes / 100 * 70
+            new_max_bandwidth_bytes = self._get_bandwidth_limit() if self._max_bandwidth_bytes is None else self._max_bandwidth_bytes / 100 * 70
 
             if adjust_bandwidth:
                 if self._threshold_bandwidth < new_max_bandwidth_bytes:
                     self._max_bandwidth_bytes = new_max_bandwidth_bytes
-                    self.__upload_file(local_file, target_file, True)
+                    self._upload_file(local_file, target_file, True)
                 else:
                     raise Exception(f"Нестабильный интернет. Автопонижение скорости выгрузки до {self._max_bandwidth_bytes / 125} Кбит/с не решило проблему")
 
-    def __compute_files_to_upload(self, local_backups: [], root_local_path, path_cloud, with_hash=False):
+    def _compute_files_to_upload(self, local_backups: [], root_local_path, path_cloud, with_hash=False):
         if with_hash:
-            return self.__compute_files_to_upload_with_hash(local_backups, root_local_path, path_cloud)
+            return self._compute_files_to_upload_with_hash(local_backups, root_local_path, path_cloud)
         else:
-            return self.__compute_files_to_upload_no_hash(local_backups, root_local_path, path_cloud)
+            return self._compute_files_to_upload_no_hash(local_backups, root_local_path, path_cloud)
 
-    def __get_bandwidth_limit(self):
+    def _get_bandwidth_limit(self):
         return 9 * 1000 * 1000 / 8 #Speed - 9Mbit/s
 
-    def __compute_files_to_upload_no_hash(self, local_backups: [], root_local_path, path_cloud):
+    def _compute_files_to_upload_no_hash(self, local_backups: [], root_local_path, path_cloud):
         result = {}
         for l_backup in local_backups:
             _dir = os.path.dirname(l_backup)
@@ -890,7 +890,7 @@ class AWS_Connector:
                 result.update({l_backup: full_path_cloud})
         return result
 
-    def __compute_files_to_upload_with_hash(self, local_backups: [], root_local_path, path_cloud):
+    def _compute_files_to_upload_with_hash(self, local_backups: [], root_local_path, path_cloud):
         result = {}
         for l_backup in local_backups:
             path_to_dir = os.path.dirname(l_backup)
@@ -911,20 +911,20 @@ class AWS_Connector:
         return result
 
     def _clean_cloud(self, local_cloud_paths, with_hash):
-        extra_bck = self.__get_extra_bck_on_cloud(local_cloud_paths, with_hash)
+        extra_bck = self._get_extra_bck_on_cloud(local_cloud_paths, with_hash)
         if len(extra_bck) > 0:
             objects = []
             for bck in extra_bck:
                 objects.append({'Key': bck})
             self._aws_client.delete_objects(Bucket=self._args.aws_bucket(), Delete={'Objects': objects})
 
-    def __get_extra_bck_on_cloud(self, local_cloud_paths: {}, with_hash=False):
+    def _get_extra_bck_on_cloud(self, local_cloud_paths: {}, with_hash=False):
         if with_hash:
-            return self.__get_extra_bck_on_cloud_with_hash(local_cloud_paths)
+            return self._get_extra_bck_on_cloud_with_hash(local_cloud_paths)
         else:
-            return self.__get_extra_bck_on_cloud_no_hash(local_cloud_paths)
+            return self._get_extra_bck_on_cloud_no_hash(local_cloud_paths)
 
-    def __get_extra_bck_on_cloud_no_hash(self, local_cloud_paths: {}):
+    def _get_extra_bck_on_cloud_no_hash(self, local_cloud_paths: {}):
         result = []
         loca_files = []
         for local_path, cloud_path in local_cloud_paths.items():
@@ -941,7 +941,7 @@ class AWS_Connector:
 
         return result
 
-    def __get_extra_bck_on_cloud_with_hash(self, local_cloud_paths: {}):
+    def _get_extra_bck_on_cloud_with_hash(self, local_cloud_paths: {}):
         result = []
         loca_files = {}
         for local_path, cloud_path in local_cloud_paths.items():
@@ -958,9 +958,9 @@ class AWS_Connector:
                     result.append(cloud_file['Path'])
         return result
 
-    def __delete_empty_dirs_on_aws(self):
+    def _delete_empty_dirs_on_aws(self):
         verification_path = self._args.path_to_cloud_custom_dir(for_aws=True)
-        empty_dirs = self.__empty_aws_cloud_dirs(verification_path)
+        empty_dirs = self._empty_aws_cloud_dirs(verification_path)
 
         try:
             empty_dirs.remove(verification_path + '/')
@@ -975,7 +975,7 @@ class AWS_Connector:
 
         self._aws_client.delete_objects(Bucket=self._args.aws_bucket(), Delete={'Objects': for_deletion})
 
-    def __empty_aws_cloud_dirs(self, verification_path):
+    def _empty_aws_cloud_dirs(self, verification_path):
         obj_on_aws = Func.get_objects_on_aws(self._aws_client, self._args.aws_bucket(),
                                              verification_path, only_files=False, with_hash=False)
         obj_on_aws = set(obj_on_aws)
@@ -1608,12 +1608,14 @@ class LocalCleaner:
             os.rmdir(dir_path)
         return delete_it
 
+
 class Manager:
-    __connector = None
-    __backupers = {}
-    __cleaner = None
+
+    _connector = None
+    _backupers = {}
+    _cleaner = None
     _args = None
-    __aws_client = None
+    _aws_client = None
 
     def __init__(self, new_args=None, create_backup=False,
                  clean_backups=False, sync_backups=False):
@@ -1625,18 +1627,18 @@ class Manager:
             raise e
 
         if create_backup:
-            self.__backupers.update({'pg_dump': DumpBackuper(self._args)})
+            self._backupers.update({'pg_dump': DumpBackuper(self._args)})
             if self._args.handle_full_bcks():
-                self.__backupers.update({'pg_basebackup': BaseBackuper(self._args)})
+                self._backupers.update({'pg_basebackup': BaseBackuper(self._args)})
 
         if sync_backups:
-                self.__connector = AWS_Connector(self._args)
+                self._connector = AWS_Connector(self._args)
         if clean_backups:
-            self.__cleaner = LocalCleaner(self._args)
+            self._cleaner = LocalCleaner(self._args)
 
     def clean_backups(self, write_to_log_file=True, raise_exception=False):
         try:
-            self.__cleaner._clean_local()
+            self._cleaner._clean_local()
             if write_to_log_file:
                 self.write_log('cleaning-', True, '')
         except Exception as e:
@@ -1648,9 +1650,9 @@ class Manager:
     def create_backup(self, write_to_log_file=True, raise_exception=False):
         exceptions = []
 
-        for name, backuper in self.__backupers.items():
+        for name, backuper in self._backupers.items():
             try:
-                backuper._create_backup()
+                backuper.create_backup()
                 if write_to_log_file:
                     self.write_log(f'{name}-', True, '')
             except Exception as e:
@@ -1663,7 +1665,7 @@ class Manager:
 
     def sync_with_cloud(self, write_to_log_file=True, raise_exception=False):
         try:
-            message = self.__connector._sync_with_cloud()
+            message = self._connector.sync_with_cloud()
             if write_to_log_file:
                 self.write_log('syncr-', True, str(message))
         except Exception as e:
@@ -1701,7 +1703,7 @@ class Manager:
         file.close()
 
     def backupers(self):
-        return self.__backupers
+        return self._backupers
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
