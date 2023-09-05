@@ -86,7 +86,7 @@ def test_pg():
         'custom_dir': r'Sales depart',
         'postgresql_isntance_path': r'C:\Program Files\PostgreSQL\13',
         'postgresql_username': 'postgres',
-        'postgresql_password': '1122',
+        'potester.pystgresql_password': '1122',
         'path_to_7zip': r'C:\backup\7zip',
     }
     p_create_ALL_BASES_dump_ROM_with_7zip_args = {
