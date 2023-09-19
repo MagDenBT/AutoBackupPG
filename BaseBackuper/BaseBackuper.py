@@ -142,6 +142,7 @@ class Func:
             result.update({file: Func.get_md5(file, chunk_size)})
         return result
 
+
 class Args(object):
     __custom_dir: str = None
     __path_to_onec_fb_backups: str = None
