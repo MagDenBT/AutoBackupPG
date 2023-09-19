@@ -24,10 +24,6 @@ class PgBaseBackuper(AbstractBackuper):
     def create_backup(self):
         self._clear_dir(self._config.temp_path)
 
-        if not os.path.exists(self._config.pg_basebackup):
-            raise PgBaseBackupNotFound(pg_basebackup_path=self._config.pg_basebackup,
-                                       sql_instance_path=self._config.postgresql_instance_path)
-
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self._config.postgresql_password
         comm_args = [self._config.pg_basebackup,
@@ -103,12 +99,6 @@ class PgDumpBackuper(AbstractBackuper):
         self._config = config
 
     def create_backup(self):
-
-        if not os.path.exists(self._config.pg_dump):
-            raise Exception(
-                f'pg_dump по адресу {self._config.pg_dump()} не найден. Проверьте правильность пути до каталога '
-                f'сервера PosgtrSQL или pg_dump(если он задан отдельно). Текущий путь до сервера в скрипте - '
-                f'{self._config.postgresql_instance_path}')
 
         all_bases = self._config.database_name is None or self._config.database_name == ""
 

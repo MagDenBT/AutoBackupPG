@@ -53,7 +53,7 @@ class MandatoryPropertiesNotPresent(Exception):
 
 class PgBaseBackupNotFound(Exception):
     MSG_TEMPLATE = (
-        'Ошибка при создании полного бэкапа PostgreSQl - pg_basebackup не найден.\n'
+        'Ошибка инициализации настроек - не найден pg_basebackup\n'
         'Проверьте путь до каталога сервера SQL ({sql_instance_path}) \n'
         'или pg_basebackup({pg_basebackup_path})'
     )
@@ -61,6 +61,21 @@ class PgBaseBackupNotFound(Exception):
     def __init__(self, pg_basebackup_path: str, sql_instance_path: str, ):
         msg = self.MSG_TEMPLATE.format(
             pg_basebackup_path=pg_basebackup_path,
+            sql_instance_path=sql_instance_path,
+        )
+        super().__init__(msg)
+
+
+class PgDumpNotFound(Exception):
+    MSG_TEMPLATE = (
+        'Ошибка инициализации настроек - не найден pg_dump\n'
+        'Проверьте путь до каталога сервера SQL ({sql_instance_path}) \n'
+        'или pg_dump({pg_dump_path})'
+    )
+
+    def __init__(self, pg_dump: str, sql_instance_path: str, ):
+        msg = self.MSG_TEMPLATE.format(
+            pg_dump=pg_dump,
             sql_instance_path=sql_instance_path,
         )
         super().__init__(msg)

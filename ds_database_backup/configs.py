@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Any, List
 
 from AutoBackupPG.ds_database_backup.exceptions import DriveNotExist, MandatoryPropertiesNotPresent, \
-    ArchiverNotFound, OneCDbNotFound
+    ArchiverNotFound, OneCDbNotFound, PgBaseBackupNotFound, PgDumpNotFound
 
 
 class AbstractConfig(ABC):
@@ -80,6 +80,12 @@ class ConfigPgBaseBackuper(AbstractConfig):
 
     _path_to_7zip: str = ''
     _temp_path: str = './temp'
+
+    def __init__(self, params: {str: Any}):
+        super(ConfigPgBaseBackuper, self).__init__(params)
+        if not os.path.exists(self.pg_basebackup):
+            raise PgBaseBackupNotFound(pg_basebackup_path=self._config.pg_basebackup,
+                                       sql_instance_path=self._config.postgresql_instance_path)
 
     def _mandatory_properties_for_check(self) -> List[str]:
         return [
@@ -191,6 +197,12 @@ class ConfigPgDumpBackuper(AbstractConfig):
 
     _path_to_7zip: str = ''
     _temp_path: str = './temp'
+
+    def __init__(self, params: {str: Any}):
+        super(ConfigPgDumpBackuper, self).__init__(params)
+        if not os.path.exists(self.pg_dump):
+            raise PgDumpNotFound(pg_dump=self._config.pg_basebackup,
+                                 sql_instance_path=self._config.postgresql_instance_path)
 
     def _mandatory_properties_for_check(self) -> List[str]:
         return [
