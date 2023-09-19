@@ -2,6 +2,9 @@ import os
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
+
+from AutoBackupPG.ds_database_backup.exceptions import PgBaseBackupNotFound, PgBaseBackupCreateError, \
+    ArchiveCreateError, PgDumpRunError, PgDumpCreateError, OneCFBBackupCreateError
 from AutoBackupPG.ds_database_backup.settings import SettingPgBaseBackuper, SettingPgDumpBackuper, Setting1CFBBackuper
 from AutoBackupPG.ds_database_backup.utils import Utils
 
@@ -22,14 +25,11 @@ class PgBaseBackuper(AbstractBackuper):
         self._clear_dir(self._settings.temp_path)
 
         if not os.path.exists(self._settings.pg_basebackup):
-            raise Exception(
-                f'pg_basebackup по адресу {self._settings.pg_basebackup} не найден. Проверьте правльность пути до '
-                f'каталога сервера PosgtrSQL или pg_basebackup(если он задан отдельно). Текущий путь до сервера в '
-                f'скрипте - {self._settings.postgresql_instance_path}')
+            raise PgBaseBackupNotFound(pg_basebackup_path=self._settings.pg_basebackup,
+                                       sql_instance_path=self._settings.postgresql_instance_path)
 
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self._settings.postgresql_password
-        use_ext_archiver = self._settings.use_external_archiver
         comm_args = [self._settings.pg_basebackup,
                      '-D', self._settings.temp_path,
                      '-X', 'fetch',
@@ -39,12 +39,9 @@ class PgBaseBackuper(AbstractBackuper):
                      '--username', self._settings.postgresql_username,
                      ]
 
-        if use_ext_archiver:
-            arch = f'{self._settings.path_to_7zip}\\7za.exe'
-            if not os.path.exists(arch):
-                raise Exception(f'{arch} - архиватор не найден')
-        else:
+        if not self._settings.use_external_archiver:
             comm_args.append('--gzip')
+
         if self._settings.pg_port is not None and self._settings.pg_port != '':
             comm_args.extend(['-p', self._settings.pg_port])
 
@@ -55,14 +52,14 @@ class PgBaseBackuper(AbstractBackuper):
         )
 
         text_error = process.stderr.decode(errors='replace')
-        if text_error == "":
-            if use_ext_archiver:
-                self._archive_with_external_tool()
-            else:
-                self._move_to_permanent_dir()
-                self._clear_dir(self._settings.temp_path)
+        if text_error:
+            raise PgBaseBackupCreateError(text_error)
+
+        if self._settings.use_external_archiver:
+            self._archive_with_external_tool()
         else:
-            raise Exception(text_error)
+            self._move_to_permanent_dir()
+            self._clear_dir(self._settings.temp_path)
 
     @staticmethod
     def _clear_dir(path):
@@ -73,17 +70,15 @@ class PgBaseBackuper(AbstractBackuper):
                     os.remove(f'{path}\\{_obj}')
 
     def _archive_with_external_tool(self):
-        label = self._settings.label()
-        comm_args = f'"{self._settings.path_to_7zip}\\7za.exe" a -ttar -so -sdel -an "{self._settings.temp_path}\\"*' \
-                    f' | "{self._settings.path_to_7zip}\\7za.exe" a -si' \
-                    f' "{self._settings.full_path_to_backups}\\{label}__base.txz" '
+        comm_args = f'"{self._settings.path_to_7zip}" a -ttar -so -sdel -an "{self._settings.temp_path}\\"*' \
+                    f' | "{self._settings.path_to_7zip}" a -si' \
+                    f' "{self._settings.full_path_to_backups}\\{self._settings.label}__base.txz" '
 
         try:
             subprocess.check_output(comm_args, stderr=subprocess.PIPE, shell=True)
-        except subprocess.CalledProcessError as e:
-            raise Exception(e.stderr.decode(errors='replace'))
         except Exception as e:
-            raise e
+            os.remove(self._settings.temp_path)
+            raise ArchiveCreateError(e)
 
     def _move_to_permanent_dir(self, create_subdir=True):
         label = self._settings.label()
@@ -130,44 +125,33 @@ class PgDumpBackuper(AbstractBackuper):
             self._create_through_stdout(dump_full_path, all_bases)
 
     def _create_through_stdout(self, dump_full_path, all_bases: bool):
-        archiver = None
-        if self._settings.use_external_archiver:
-            archiver = f'{self._settings.path_to_7zip}\\7za.exe'
-            if not os.path.exists(archiver):
-                raise Exception(f'{archiver} - архиватор не найден')
-
         if all_bases:
-            comm_args = self._all_bases_command_through_stdout(archiver,
-                                                               dump_full_path)
+            comm_args = self._all_bases_command_through_stdout(dump_full_path)
         else:
-            comm_args = self._specific_base_command_through_stdout(archiver, dump_full_path)
+            comm_args = self._specific_base_command_through_stdout(dump_full_path)
 
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self._settings.postgresql_password
 
         try:
             output = subprocess.check_output(comm_args, stderr=subprocess.STDOUT, env=my_env, shell=True)
-        except subprocess.CalledProcessError as e:
-            raise Exception(e.output.decode(errors='replace'))
         except Exception as e:
-            raise e
-        output = output.decode(errors='replace')
-        pg_error = output.splitlines()[0] if len(output.splitlines()) > 0 else ''
-        if pg_error != '':
-            raise Exception(pg_error)
+            raise PgDumpRunError(e)
 
-    def _all_bases_command_through_stdout(self, archiver, dump_full_path):
+        self._throw_error_if_create_process_failed(output)
+
+    def _all_bases_command_through_stdout(self, dump_full_path):
         port_arg = ''
         if self._settings.pg_port is not None and self._settings.pg_port != '':
             port_arg = f' -p {self._settings.pg_port}'
         comm_args = f'"{self._settings.pg_dumpall()}"{port_arg} -U {self._settings.postgresql_username}'
-        if archiver is not None:
-            comm_args = comm_args + f' | "{archiver}" a -si "{dump_full_path}.xz"'
+        if self._settings.use_external_archiver:
+            comm_args = comm_args + f' | "{self._settings.path_to_7zip}" a -si "{dump_full_path}.xz"'
         else:
             comm_args += f' > "{dump_full_path}"'
         return comm_args
 
-    def _specific_base_command_through_stdout(self, archiver, dump_full_path):
+    def _specific_base_command_through_stdout(self, dump_full_path):
         port_arg = ''
         if self._settings.pg_port is not None and self._settings.pg_port != '':
             port_arg = f' -p {self._settings.pg_port}'
@@ -176,18 +160,24 @@ class PgDumpBackuper(AbstractBackuper):
                     f' -U {self._settings.postgresql_username}' \
                     f' -Fc {self._settings.database_name}'
 
-        if archiver is not None:
-            comm_args = comm_args + f' | "{archiver}" a -si "{dump_full_path}.xz"'
+        if self._settings.use_external_archiver:
+            comm_args = comm_args + f' | "{self._settings.path_to_7zip}" a -si "{dump_full_path}.xz"'
         else:
             comm_args += f' > "{dump_full_path}"'
 
         return comm_args
 
+    @staticmethod
+    def _throw_error_if_create_process_failed(subprocess_output):
+        result = subprocess_output.decode(errors='replace')
+        pg_error = ''
+        if len(result.splitlines()) > 0:
+            pg_error = result.splitlines()[0]
+        if pg_error:
+            raise PgDumpCreateError(pg_error)
+
     def _create_through_rom(self, finish_dump_path, all_bases: bool):
-        arch = f'{self._settings.path_to_7zip}\\7za.exe'
         if self._settings.use_external_archiver:
-            if not os.path.exists(arch):
-                raise Exception(f'{arch} - архиватор не найден')
             if not os.path.exists(self._settings.temp_path):
                 os.makedirs(self._settings.temp_path)
             dump_full_path = f'{self._settings.temp_path}\\{os.path.basename(finish_dump_path)}'
@@ -206,11 +196,11 @@ class PgDumpBackuper(AbstractBackuper):
         )
 
         text_error = process.stderr.decode(errors='replace')
-        if text_error == "":
-            if self._settings.use_external_archiver:
-                self._archive_with_external_tool(arch, dump_full_path, finish_dump_path)
-        else:
-            raise Exception(text_error)
+        if text_error:
+            raise PgDumpCreateError(text_error)
+
+        if self._settings.use_external_archiver:
+            self._archive_with_external_tool(dump_full_path, finish_dump_path)
 
     def _all_bases_command_through_rom(self, dump_full_path):
         comm_args = [self._settings.pg_dumpall(),
@@ -234,41 +224,25 @@ class PgDumpBackuper(AbstractBackuper):
             comm_args.insert(2, self._settings.pg_port)
         return comm_args
 
-    @staticmethod
-    def _archive_with_external_tool(arch_path, source, target):
-        comm_args = f'"{arch_path}" a -sdel "{target}.xz" "{source}"'
+    def _archive_with_external_tool(self, source, target):
+        comm_args = f'"{self._settings.path_to_7zip}" a -sdel "{target}.xz" "{source}"'
         try:
             subprocess.check_output(comm_args, stderr=subprocess.PIPE, shell=True)
-        except subprocess.CalledProcessError as e:
-            os.remove(source)
-            raise Exception(e.stderr.decode(errors='replace'))
         except Exception as e:
             os.remove(source)
-            raise e
+            raise ArchiveCreateError(e)
 
 
 class OneCFbBackuper:
-
     _settings = None
 
     def __init__(self, settings: Setting1CFBBackuper):
         self._settings = settings
 
     def _create_backup(self):
-        cd_file_name = f'1Cv8.1CD'
-        source_file = f'{self._settings.path_to_1c_db}\\{cd_file_name}'
+        target_file = f'{self._settings.full_path_to_backups}\\{self._settings.label}_{self._settings.path_to_1c_db}.xz'
 
-        if not os.path.exists(source_file):
-            raise Exception(
-                f'{source_file} - файл не найден. Проверьте правильность пути до каталога c базой 1с')
-
-        if not os.path.exists(self._settings.path_to_7zip):
-            raise Exception(
-                f'{self._settings.path_to_7zip}\\7za.exe - архиватор 7zip не найден')
-
-        target_file = f'{self._settings.full_path_to_backups}\\{self._settings.label}_{cd_file_name}.xz'
-
-        comm_args = [f'{self._settings.path_to_7zip}\\7za.exe', 'a', target_file, '-ssw', source_file]
+        comm_args = [f'{self._settings.path_to_7zip}', 'a', target_file, '-ssw', self._settings.path_to_1c_db]
 
         process = subprocess.run(
             comm_args,
@@ -276,5 +250,5 @@ class OneCFbBackuper:
         )
 
         text_error = process.stderr.decode(errors='replace')
-        if not text_error == "":
-            raise Exception(text_error)
+        if text_error:
+            raise OneCFBBackupCreateError(text_error)

@@ -1,8 +1,12 @@
 import os
+from typing import List
+
 import boto3
 from boto3.s3.transfer import TransferConfig
 from abc import ABC, abstractmethod
 
+from AutoBackupPG.ds_database_backup.exceptions import AWSTimeTooSkewedError, AWSBucketError, \
+    RansomwareVirusTracesFound, AWSSpeedAutoAdjustmentError
 from AutoBackupPG.ds_database_backup.settings import SettingAWSClient
 from AutoBackupPG.ds_database_backup.utils import Utils
 
@@ -13,26 +17,24 @@ class BaseClient(ABC):
         pass
 
 
-class AWS_Connector:
+class AWSClient(BaseClient):
 
-
-    def __init__(self, args: SettingAWSClient):
-        self._settings = args
+    def __init__(self, settings: SettingAWSClient):
+        self._settings = settings
         session = boto3.session.Session()
         self._aws_client = session.client(
             service_name='s3',
-            endpoint_url=self._settings.endpoint_url,
-            aws_access_key_id=self._settings.access_key_id,
-            aws_secret_access_key=self._settings.secret_access_key
+            endpoint_url=settings.endpoint_url,
+            aws_access_key_id=settings.access_key_id,
+            aws_secret_access_key=settings.secret_access_key
         )
         self._cloud_backups = []
 
-    def sync_with_cloud(self):
+    def sync(self) -> None:
+        if self._local_time_is_too_skewed():
+            raise AWSTimeTooSkewedError()
 
-        if self._local_time_is_too_skewed(): raise Exception("Локальное время слишком сильно отличается от облачного")
-
-        error_message = self._bucket_exists_and_accessible()
-        if error_message is not None: raise Exception(error_message)
+        self._check_bucket()
 
         local_cloud_paths = {}
         if Utils.contain_files(self._settings.full_path_to_backups):
@@ -48,48 +50,38 @@ class AWS_Connector:
         corrupt_files = self._get_corrupt_files(local_cloud_paths)
         if len(corrupt_files) == 0:
             self._clean_cloud(local_cloud_paths, with_hash)
+
         self._upload_to_cloud(local_cloud_paths, with_hash)
+
         if len(corrupt_files) > 0:
-            raise Exception(
-                f'Traces of a ransomware VIRUS may have been found. The following files have an unknown extension -{corrupt_files}')
+            raise RansomwareVirusTracesFound(corrupt_files)
 
     def _local_time_is_too_skewed(self):
-
         from botocore.exceptions import ClientError
+        is_too_skewed = False
 
         try:
             self._aws_client.list_objects(Bucket=self._settings.bucket)
         except ClientError as e:
-            return e.response.get('Error').get('Code') == 'RequestTimeTooSkewed'
-        except:
-            return False
+            is_too_skewed = e.response.get('Error').get('Code') == 'RequestTimeTooSkewed'
 
-    def _bucket_exists_and_accessible(self):
+        return is_too_skewed
 
-        from botocore.exceptions import (
-            ConnectionClosedError,
-        )
-
-        error_message = None
+    def _check_bucket(self) -> None:
         try:
             self._aws_client.head_bucket(Bucket=self._settings.bucket)
-        except ConnectionClosedError as e:
-            error_message = e.fmt
         except Exception as e:
-            # noinspection PyUnresolvedReferences
-            err_code = e.response.get('Error').get('Code')
-            if err_code == '404':
-                error_message = f'Bucket "{self._settings.bucket}" does not exist'
-            elif err_code == '403':
-                error_message = f'Access to the bucket "{self._settings.bucket}" is forbidden'
-        return error_message
+            AWSBucketError(e)
 
     def _get_objects_on_aws(self, only_files=True, with_hash=True):
         result = []
 
+        # noinspection PyBroadException
         try:
-            for obj in self._aws_client.list_objects_v2(Bucket=self._settings.bucket, Prefix=self._settings.path_to_backups_cloud)[
-                'Contents']:
+            for obj in \
+                    self._aws_client.list_objects_v2(Bucket=self._settings.bucket,
+                                                     Prefix=self._settings.path_to_backups_cloud)[
+                        'Contents']:
                 resource_name = obj['Key']
                 if resource_name.endswith('/') and only_files:
                     continue
@@ -99,11 +91,11 @@ class AWS_Connector:
                 else:
                     item = resource_name
                 result.append(item)
-        except Exception:
-            a = 1
+        except:
+            pass
         return result
 
-    def _get_corrupt_files(self, local_cloud_paths: {}):
+    def _get_corrupt_files(self, local_cloud_paths: {}) -> List[str]:
         loca_files = []
         for local_path, cloud_path in local_cloud_paths.items():
             loca_files.extend(Utils.get_objects_on_disk(local_path, only_files=True))
@@ -125,7 +117,8 @@ class AWS_Connector:
                 return False
         return True
 
-    def _get_valid_extensions(self):
+    @staticmethod
+    def _get_valid_extensions():
         return ['.gz', '.xz', '.txz', '.backup', '.dump']
 
     def _upload_to_cloud(self, local_cloud_paths: {}, with_hash):
@@ -160,24 +153,24 @@ class AWS_Connector:
                 ConnectionClosedError,
                 ReadTimeoutError,
                 ConnectTimeoutError,
-        ) as e:
-            new_max_bandwidth_bytes = self._get_bandwidth_limit() if self._settings.max_bandwidth_bytes is None else self._settings.max_bandwidth_bytes / 100 * 70
+        ):
+            if self._settings.max_bandwidth_bytes is None:
+                new_max_bandwidth_bytes = self._settings.bandwidth_limit
+            else:
+                new_max_bandwidth_bytes = self._settings.max_bandwidth_bytes / 100 * 70
 
             if adjust_bandwidth:
-                if self._threshold_bandwidth < new_max_bandwidth_bytes:
-                    self._max_bandwidth_bytes = new_max_bandwidth_bytes
+                if self._settings.threshold_bandwidth < new_max_bandwidth_bytes:
+                    self._settings.set_max_bandwidth_bytes(new_max_bandwidth_bytes)
                     self._upload_file(local_file, target_file, True)
                 else:
-                    raise Exception(
-                        f"Нестабильный интернет. Автопонижение скорости выгрузки до {self._max_bandwidth_bytes / 125} Кбит/с не решило проблему")
+                    raise AWSSpeedAutoAdjustmentError(self._settings.max_bandwidth_bytes / 125)
 
     def _compute_files_to_upload(self, local_backups: [], root_local_path, path_cloud, with_hash=False):
         if with_hash:
             return self._compute_files_to_upload_with_hash(local_backups, root_local_path, path_cloud)
         else:
             return self._compute_files_to_upload_no_hash(local_backups, root_local_path, path_cloud)
-
-
 
     def _compute_files_to_upload_no_hash(self, local_backups: [], root_local_path, path_cloud):
         result = {}
@@ -268,9 +261,9 @@ class AWS_Connector:
     def _delete_empty_dirs_on_aws(self):
         empty_dirs = self._empty_aws_cloud_dirs()
         try:
-            empty_dirs.remove(self._settings.path_to_backups_cloud(True) + '/')
+            empty_dirs.remove(self._settings.path_to_backups_cloud + '/')
         except KeyError:
-            a = 1
+            pass
 
         empty_dirs = Utils.optimize_remove_list_dir(empty_dirs)
 
@@ -301,4 +294,3 @@ class AWS_Connector:
                     except KeyError:
                         continue
         return result
-

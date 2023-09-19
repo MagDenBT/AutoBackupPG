@@ -4,10 +4,8 @@ import random
 from abc import ABC, abstractmethod
 from typing import Any, List
 
-
-class DriveNotExistError(Exception):
-    def __init__(self):
-        super().__init__()
+from AutoBackupPG.ds_database_backup.exceptions import DriveNotExist, MandatoryPropertiesNotPresent, \
+    ArchiverNotFound, OneCDbNotFound
 
 
 class AbstractSettings(ABC):
@@ -27,9 +25,7 @@ class AbstractSettings(ABC):
             try:
                 set_method = self[f'set_{str.lower(key)}']
                 set_method(value)
-            except DriveNotExistError:
-                raise Exception(f"Параметр {key} - Корневой диск в '{value}' не существует")
-            except:
+            except AttributeError:
                 continue
 
     @abstractmethod
@@ -37,19 +33,17 @@ class AbstractSettings(ABC):
         pass
 
     def _check_mandatory_properties(self, mandatory_properties: List[str]):
-        _error = False
-        message = 'Отстутствуют следующие обязательные параметры - '
+        failed_properties = []
         for prop in mandatory_properties:
             try:
                 prop_val = self[prop.lower()]
                 if prop_val is None or prop_val == '':
-                    _error = True
-                    message += prop + ', '
+                    failed_properties.append(prop)
             except AttributeError:
-                _error = True
-                message += prop + ', '
-        if _error:
-            raise Exception(message)
+                failed_properties.append(prop)
+
+        if failed_properties:
+            raise MandatoryPropertiesNotPresent(failed_properties)
 
     @staticmethod
     def _generate_label(use_millisec=False) -> str:
@@ -65,7 +59,7 @@ class AbstractSettings(ABC):
         root_path = os.path.abspath(path)
         root_drive, _ = os.path.splitdrive(root_path)
         if not os.path.exists(root_drive):
-            raise DriveNotExistError()
+            raise DriveNotExist()
 
     def label(self) -> str:
         if self._label == '':
@@ -165,6 +159,9 @@ class SettingPgBaseBackuper(AbstractSettings):
 
     def set_path_to_7zip(self, value: str):
         super()._check_disk(value)
+        value += '\\7za.exe'
+        if not os.path.exists(value):
+            raise ArchiverNotFound(value)
         self._path_to_7zip = value
 
     @property
@@ -277,6 +274,9 @@ class SettingPgDumpBackuper(AbstractSettings):
 
     def set_path_to_7zip(self, value: str):
         super()._check_disk(value)
+        value += '\\7za.exe'
+        if not os.path.exists(value):
+            raise ArchiverNotFound(value)
         self._path_to_7zip = value
 
     @property
@@ -316,6 +316,7 @@ class Setting1CFBBackuper(AbstractSettings):
     _path_to_1c_db: str = ''
     _path_to_7zip: str = ''
     _backup_type_dir: str = 'OneC_file_bases'
+    _cd_file_name: str = '1Cv8.1CD'
 
     def _mandatory_properties_for_check(self) -> List[str]:
         return [
@@ -327,6 +328,9 @@ class Setting1CFBBackuper(AbstractSettings):
 
     def set_path_to_backups(self, value: str):
         super()._check_disk(value)
+        value += self._cd_file_name
+        if not os.path.exists(value):
+            raise OneCDbNotFound(value)
         self._path_to_backups = value
 
     def set_custom_dir(self, value: str):
@@ -346,9 +350,13 @@ class Setting1CFBBackuper(AbstractSettings):
 
     def set_path_to_7zip(self, value: str):
         super()._check_disk(value)
+        value += '\\7za.exe'
+        if not os.path.exists(value):
+            raise ArchiverNotFound(value)
         self._path_to_7zip = value
 
     # Properties without class fields
+
     @property
     def full_path_to_backups(self) -> str:
         return f'{self._path_to_backups}\\{self._custom_dir}\\{self._backup_type_dir}'
@@ -366,7 +374,7 @@ class SettingAWSClient(AbstractSettings):
     _with_hash: bool = False
 
     _bandwidth_limit: int = 9 * 1000 * 1000 / 8  # Speed - 9Mbit/s
-    _max_bandwidth_bytes: int = 0
+    _max_bandwidth_bytes: int = None
     _threshold_bandwidth: int = 500 * 1000 / 8
 
     @staticmethod
