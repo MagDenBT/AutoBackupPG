@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 
 from AutoBackupPG.ds_database_backup.exceptions import AWSTimeTooSkewedError, AWSBucketError, \
     RansomwareVirusTracesFound, AWSSpeedAutoAdjustmentError
-from AutoBackupPG.ds_database_backup.settings import ConfigAWSClient
+from AutoBackupPG.ds_database_backup.configs import ConfigAWSClient
 from AutoBackupPG.ds_database_backup.utils import Utils
 
 

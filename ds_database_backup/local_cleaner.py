@@ -5,7 +5,7 @@ from dateutil import parser
 
 from typing import Dict
 
-from AutoBackupPG.ds_database_backup.settings import *
+from AutoBackupPG.ds_database_backup.configs import *
 from AutoBackupPG.ds_database_backup.utils import Utils
 
 

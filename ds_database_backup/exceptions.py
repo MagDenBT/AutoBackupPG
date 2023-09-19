@@ -7,7 +7,7 @@ class DriveNotExist(Exception):
         'Ошибка инициализации настроек. Параметр {parameter_name} - Корневой диск в {path} не существует'
     )
 
-    def __init__(self, parameter_name, path):
+    def __init__(self, parameter_name: str, path: str):
         msg = self.MSG_TEMPLATE.format(
             parameter_name=parameter_name,
             path=path,
@@ -172,7 +172,8 @@ class AWSBucketError(Exception):
 
 class RansomwareVirusTracesFound(Exception):
     MSG_TEMPLATE = (
-        'Выгрузка в облако была выполнена, но обнаружены файлы с нетипичными расширениями (вирус-шифровальщик?) - {corrupt_files}'
+        'Выгрузка в облако была выполнена, '
+        'но обнаружены файлы с нетипичными расширениями (вирус-шифровальщик?) - {corrupt_files}'
     )
 
     def __init__(self, corrupt_files: List[str]):
@@ -184,7 +185,8 @@ class RansomwareVirusTracesFound(Exception):
 
 class AWSSpeedAutoAdjustmentError(Exception):
     MSG_TEMPLATE = (
-        'Ошибка при синхронизации с облаком - нестабильный интернет, автопонижение скорости выгрузки до {speed_kbit_s} Кбит/с не решило проблему'
+        'Ошибка при синхронизации с облаком - нестабильный интернет, автопонижение скорости выгрузки до'
+        ' {speed_kbit_s} Кбит/с не решило проблему'
     )
 
     def __init__(self, speed_kbit_s):

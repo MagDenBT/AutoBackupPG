@@ -55,11 +55,11 @@ class AbstractConfig(ABC):
         return time_stamp + '_' + str(random.randint(1, 100))
 
     @staticmethod
-    def _check_disk(path):
+    def _check_disk_for_parameter(path: str, parameter_name: str):
         root_path = os.path.abspath(path)
         root_drive, _ = os.path.splitdrive(root_path)
         if not os.path.exists(root_drive):
-            raise DriveNotExist()
+            raise DriveNotExist(parameter_name=parameter_name, path=path)
 
     def label(self) -> str:
         if self._label == '':
@@ -71,7 +71,6 @@ class ConfigPgBaseBackuper(AbstractConfig):
     _path_to_backups: str = ''
     _custom_dir: str = ''
 
-    _local_path_to_wal_files: str = ''
     _pg_basebackup: str = ''
 
     _postgresql_instance_path: str = ''
@@ -96,7 +95,7 @@ class ConfigPgBaseBackuper(AbstractConfig):
         return self._path_to_backups
 
     def set_path_to_backups(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'path_to_backups')
         self._path_to_backups = value
 
     @property
@@ -107,21 +106,13 @@ class ConfigPgBaseBackuper(AbstractConfig):
         self._custom_dir = value
 
     @property
-    def local_path_to_wal_files(self) -> str:
-        return self._local_path_to_wal_files
-
-    def set_local_path_to_wal_files(self, value: str):
-        super()._check_disk(value)
-        self._local_path_to_wal_files = value
-
-    @property
     def pg_basebackup(self) -> str:
         if self._pg_basebackup == '':
             self._pg_basebackup = self.postgresql_instance_path + 'bin\\pg_basebackup.exe'
         return self._pg_basebackup
 
     def set_pg_basebackup(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'pg_basebackup')
         self._pg_basebackup = value
 
     @property
@@ -129,7 +120,7 @@ class ConfigPgBaseBackuper(AbstractConfig):
         return self._postgresql_instance_path
 
     def set_postgresql_instance_path(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'postgresql_instance_path')
         self._postgresql_instance_path = value
 
     @property
@@ -158,7 +149,7 @@ class ConfigPgBaseBackuper(AbstractConfig):
         return self._path_to_7zip
 
     def set_path_to_7zip(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'path_to_7zip')
         value += '\\7za.exe'
         if not os.path.exists(value):
             raise ArchiverNotFound(value)
@@ -169,7 +160,7 @@ class ConfigPgBaseBackuper(AbstractConfig):
         return self._temp_path
 
     def set_temp_path(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'temp_path')
         self._temp_path = value
 
     # Properties without class fields
@@ -215,7 +206,7 @@ class ConfigPgDumpBackuper(AbstractConfig):
         return self._path_to_backups
 
     def set_path_to_backups(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'path_to_backups')
         self._path_to_backups = value
 
     @property
@@ -244,7 +235,7 @@ class ConfigPgDumpBackuper(AbstractConfig):
         return self._postgresql_instance_path
 
     def set_postgresql_instance_path(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'postgresql_instance_path')
         self._postgresql_instance_path = value
 
     @property
@@ -273,7 +264,7 @@ class ConfigPgDumpBackuper(AbstractConfig):
         return self._path_to_7zip
 
     def set_path_to_7zip(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'path_to_7zip')
         value += '\\7za.exe'
         if not os.path.exists(value):
             raise ArchiverNotFound(value)
@@ -284,7 +275,7 @@ class ConfigPgDumpBackuper(AbstractConfig):
         return self._temp_path
 
     def set_temp_path(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'temp_path')
         self._temp_path = value
 
     # Properties without class fields
@@ -327,7 +318,7 @@ class Config1CFBBackuper(AbstractConfig):
         ]
 
     def set_path_to_backups(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'path_to_backups')
         value += self._cd_file_name
         if not os.path.exists(value):
             raise OneCDbNotFound(value)
@@ -341,7 +332,7 @@ class Config1CFBBackuper(AbstractConfig):
         return self._path_to_1c_db
 
     def set_path_to_1c_db(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'path_to_1c_db')
         self._path_to_1c_db = value
 
     @property
@@ -349,14 +340,13 @@ class Config1CFBBackuper(AbstractConfig):
         return self._path_to_7zip
 
     def set_path_to_7zip(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'path_to_7zip')
         value += '\\7za.exe'
         if not os.path.exists(value):
             raise ArchiverNotFound(value)
         self._path_to_7zip = value
 
     # Properties without class fields
-
     @property
     def full_path_to_backups(self) -> str:
         return f'{self._path_to_backups}\\{self._custom_dir}\\{self._backup_type_dir}'
@@ -398,7 +388,7 @@ class ConfigAWSClient(AbstractConfig):
         return self._path_to_backups
 
     def set_path_to_backups(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'path_to_backups')
         self._path_to_backups = value
 
     @property
@@ -501,7 +491,7 @@ class ConfigNonPgBaseCleaner(AbstractConfig):
         return self._path_to_backups
 
     def set_path_to_backups(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'path_to_backups')
         self._path_to_backups = value
 
     @property
@@ -547,7 +537,7 @@ class ConfigPgBaseCleaner(ConfigNonPgBaseCleaner):
         return self._path_to_wal_files
 
     def set_path_to_wal_files(self, value: str):
-        super()._check_disk(value)
+        super()._check_disk_for_parameter(value, 'path_to_wal_files')
         self._path_to_wal_files = value
 
     @property
@@ -565,4 +555,3 @@ class ConfigPgBaseCleaner(ConfigNonPgBaseCleaner):
     @property
     def handle_wal_files(self) -> bool:
         return self._path_to_wal_files is not ''
-

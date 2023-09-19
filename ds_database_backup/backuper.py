@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 from AutoBackupPG.ds_database_backup.exceptions import PgBaseBackupNotFound, PgBaseBackupCreateError, \
     ArchiveCreateError, PgDumpRunError, PgDumpCreateError, OneCFBBackupCreateError
-from AutoBackupPG.ds_database_backup.settings import ConfigPgBaseBackuper, ConfigPgDumpBackuper, Config1CFBBackuper
+from AutoBackupPG.ds_database_backup.configs import ConfigPgBaseBackuper, ConfigPgDumpBackuper, Config1CFBBackuper
 from AutoBackupPG.ds_database_backup.utils import Utils
 
 
