@@ -36,22 +36,16 @@ class AWSClient(BaseClient):
 
         self._check_bucket()
 
-        local_cloud_paths = {}
-        if Utils.contain_files(self._config.full_path_to_backups):
-            local_cloud_paths.update({self._config.full_path_to_backups: self._config.path_to_backups_cloud})
+        all_cloud_backups = self._get_objects_on_aws(with_hash=self._config.with_hash)
+        for cloud_backup in all_cloud_backups:
+            if cloud_backup.startswith(self._config.path_to_backups_cloud):
+                self._cloud_backups.append(cloud_backup)
 
-        with_hash = self._config.with_hash
-        all_cloud_backups = self._get_objects_on_aws(with_hash=with_hash)
-        for local_path, cloud_path in local_cloud_paths.items():
-            for cloud_backup in all_cloud_backups:
-                if cloud_backup.startswith(cloud_path):
-                    self._cloud_backups.append(cloud_backup)
-
-        corrupt_files = self._get_corrupt_files(local_cloud_paths)
+        corrupt_files = self._get_corrupt_files()
         if len(corrupt_files) == 0:
-            self._clean_cloud(local_cloud_paths, with_hash)
+            self._clean_cloud()
 
-        self._upload_to_cloud(local_cloud_paths, with_hash)
+        self._upload_to_cloud()
 
         if len(corrupt_files) > 0:
             raise RansomwareVirusTracesFound(corrupt_files)
@@ -95,10 +89,8 @@ class AWSClient(BaseClient):
             pass
         return result
 
-    def _get_corrupt_files(self, local_cloud_paths: {}) -> List[str]:
-        loca_files = []
-        for local_path, cloud_path in local_cloud_paths.items():
-            loca_files.extend(Utils.get_objects_on_disk(local_path, only_files=True))
+    def _get_corrupt_files(self) -> List[str]:
+        loca_files = Utils.get_objects_on_disk(self._config.full_path_to_backups, only_files=True)
         corrupt_files = []
         for file in loca_files:
             if not self._check_extension(file):
@@ -121,20 +113,16 @@ class AWSClient(BaseClient):
     def _get_valid_extensions():
         return ['.gz', '.xz', '.txz', '.backup', '.dump']
 
-    def _upload_to_cloud(self, local_cloud_paths: {}, with_hash):
-        to_upload = {}
-        for local_path, cloud_path in local_cloud_paths.items():
-            local_backups = Utils.get_objects_on_disk(local_path)
-            result = self._compute_files_to_upload(local_backups, local_path, cloud_path, with_hash)
-            to_upload.update(result)
+    def _upload_to_cloud(self):
+
+        local_backups = Utils.get_objects_on_disk(self._config.full_path_to_backups)
+        to_upload = self._compute_files_to_upload(local_backups)
 
         if len(to_upload) == 0:
-            return 'Нет новых файлов для выгрузки'
+            return
 
         for backup_local, savefile in to_upload.items():
             self._upload_file(backup_local, savefile)
-
-        return ''
 
     def _upload_file(self, local_file, target_file, adjust_bandwidth=True):
 
@@ -166,13 +154,15 @@ class AWSClient(BaseClient):
                 else:
                     raise AWSSpeedAutoAdjustmentError(self._config.max_bandwidth_bytes / 125)
 
-    def _compute_files_to_upload(self, local_backups: [], root_local_path, path_cloud, with_hash=False):
-        if with_hash:
-            return self._compute_files_to_upload_with_hash(local_backups, root_local_path, path_cloud)
+    def _compute_files_to_upload(self, local_backups: [str]):
+        if self._config.with_hash:
+            return self._compute_files_to_upload_with_hash(local_backups)
         else:
-            return self._compute_files_to_upload_no_hash(local_backups, root_local_path, path_cloud)
+            return self._compute_files_to_upload_no_hash(local_backups)
 
-    def _compute_files_to_upload_no_hash(self, local_backups: [], root_local_path, path_cloud):
+    def _compute_files_to_upload_no_hash(self, local_backups: [str]):
+        path_cloud = self._config.path_to_backups_cloud
+        root_local_path = self._config.full_path_to_backups
         result = {}
         for l_backup in local_backups:
             _dir = os.path.dirname(l_backup)
@@ -190,7 +180,9 @@ class AWSClient(BaseClient):
                 result.update({l_backup: full_path_cloud})
         return result
 
-    def _compute_files_to_upload_with_hash(self, local_backups: [], root_local_path, path_cloud):
+    def _compute_files_to_upload_with_hash(self, local_backups: [str]):
+        path_cloud = self._config.path_to_backups_cloud
+        root_local_path = self._config.full_path_to_backups
         result = {}
         for l_backup in local_backups:
             path_to_dir = os.path.dirname(l_backup)
@@ -210,25 +202,23 @@ class AWSClient(BaseClient):
                 result.update({l_backup: full_path_cloud})
         return result
 
-    def _clean_cloud(self, local_cloud_paths, with_hash):
-        extra_bck = self._get_extra_bck_on_cloud(local_cloud_paths, with_hash)
+    def _clean_cloud(self):
+        extra_bck = self._get_extra_bck_on_cloud()
         if len(extra_bck) > 0:
             objects = []
             for bck in extra_bck:
                 objects.append({'Key': bck})
             self._aws_client.delete_objects(Bucket=self._config.bucket, Delete={'Objects': objects})
 
-    def _get_extra_bck_on_cloud(self, local_cloud_paths: {}, with_hash=False):
-        if with_hash:
-            return self._get_extra_bck_on_cloud_with_hash(local_cloud_paths)
+    def _get_extra_bck_on_cloud(self):
+        if self._config.with_hash:
+            return self._get_extra_bck_on_cloud_using_hash()
         else:
-            return self._get_extra_bck_on_cloud_no_hash(local_cloud_paths)
+            return self._get_extra_bck_on_cloud_no_hash()
 
-    def _get_extra_bck_on_cloud_no_hash(self, local_cloud_paths: {}):
+    def _get_extra_bck_on_cloud_no_hash(self):
         result = []
-        loca_files = []
-        for local_path, cloud_path in local_cloud_paths.items():
-            loca_files.extend(Utils.get_objects_on_disk(local_path, only_files=True))
+        loca_files = Utils.get_objects_on_disk(self._config.full_path_to_backups, only_files=True)
         for cloud_file in self._cloud_backups:
             cloud_file_name = os.path.basename(cloud_file)
             to_delete = True
@@ -241,21 +231,20 @@ class AWSClient(BaseClient):
 
         return result
 
-    def _get_extra_bck_on_cloud_with_hash(self, local_cloud_paths: {}):
+    def _get_extra_bck_on_cloud_using_hash(self):
         result = []
-        loca_files = {}
-        for local_path, cloud_path in local_cloud_paths.items():
-            loca_files_pre = Utils.get_objects_on_disk(local_path, only_files=True)
-            loca_files.update(Utils.add_hashs_to_local_files(loca_files_pre, self._config.chunk_size))
-            for cloud_file in self._cloud_backups:
-                cloud_file_name = os.path.basename(cloud_file['Path'])
-                to_delete = True
-                for local_file, local_file_hash in loca_files.items():
-                    if local_file.endswith(cloud_file_name) and local_file_hash == cloud_file['Hash']:
-                        to_delete = False
-                        break
-                if to_delete:
-                    result.append(cloud_file['Path'])
+        loca_files = Utils.get_objects_on_disk(self._config.full_path_to_backups, only_files=True)
+        loca_files_and_hashes = Utils.add_hashs_to_local_files(loca_files, self._config.chunk_size)
+
+        for cloud_file in self._cloud_backups:
+            cloud_file_name = os.path.basename(cloud_file['Path'])
+            to_delete = True
+            for file, file_hash in loca_files_and_hashes.items():
+                if file.endswith(cloud_file_name) and file_hash == cloud_file['Hash']:
+                    to_delete = False
+                    break
+            if to_delete:
+                result.append(cloud_file['Path'])
         return result
 
     def _delete_empty_dirs_on_aws(self):

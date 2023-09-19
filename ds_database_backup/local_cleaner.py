@@ -524,20 +524,15 @@ class CleanerPgBaseBackups(AbstractCleaner):
     def _read_time_from_backup_label(file_obj):
         date_str = None
         while True:
-            # считываем строку
             line = file_obj.readline()
-            # прерываем цикл, если строка пустая
             if not line:
                 break
-            # выводим строку
             text = str(line.strip())
             if 'START TIME:' in text:
                 date_str = text.split('START TIME:')[1]
                 date_str = date_str.replace('\'', '')
                 date_str = date_str.replace(' ', '', 1)
                 break
-
-            # закрываем файл
         file_obj.close()
         return date_str
 
