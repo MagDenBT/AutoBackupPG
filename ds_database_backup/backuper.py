@@ -77,7 +77,7 @@ class PgBaseBackuper(AbstractBackuper):
             raise ArchiveCreateError(e)
 
     def _move_to_permanent_dir(self, create_subdir=True):
-        label = self._config.label()
+        label = self._config.label
         files = Utils.get_objects_on_disk(self._config.temp_path)
         target_dir = self._config.full_path_to_backups
 
@@ -104,7 +104,7 @@ class PgDumpBackuper(AbstractBackuper):
 
         base_name = "all_bases" if all_bases else self._config.database_name
 
-        dump_name = f'{base_name}_{self._config.label()}.dump'
+        dump_name = f'{base_name}_{self._config.label}.dump'
         dump_full_path = f'{self._config.full_path_to_backups}\\{dump_name}'
         if not os.path.exists(self._config.full_path_to_backups):
             os.makedirs(self._config.full_path_to_backups)
@@ -134,7 +134,7 @@ class PgDumpBackuper(AbstractBackuper):
         port_arg = ''
         if self._config.pg_port is not None and self._config.pg_port != '':
             port_arg = f' -p {self._config.pg_port}'
-        comm_args = f'"{self._config.pg_dumpall()}"{port_arg} -U {self._config.postgresql_username}'
+        comm_args = f'"{self._config.pg_dumpall}"{port_arg} -U {self._config.postgresql_username}'
         if self._config.use_external_archiver:
             comm_args = comm_args + f' | "{self._config.path_to_7zip}" a -si "{dump_full_path}.xz"'
         else:
@@ -146,7 +146,7 @@ class PgDumpBackuper(AbstractBackuper):
         if self._config.pg_port is not None and self._config.pg_port != '':
             port_arg = f' -p {self._config.pg_port}'
 
-        comm_args = f'"{self._config.pg_dump()}"{port_arg}' \
+        comm_args = f'"{self._config.pg_dump}"{port_arg}' \
                     f' -U {self._config.postgresql_username}' \
                     f' -Fc {self._config.database_name}'
 
@@ -193,7 +193,7 @@ class PgDumpBackuper(AbstractBackuper):
             self._archive_with_external_tool(dump_full_path, finish_dump_path)
 
     def _all_bases_command_through_rom(self, dump_full_path):
-        comm_args = [self._config.pg_dumpall(),
+        comm_args = [self._config.pg_dumpall,
                      '-U', self._config.postgresql_username,
                      '-f', dump_full_path
                      ]
@@ -203,7 +203,7 @@ class PgDumpBackuper(AbstractBackuper):
         return comm_args
 
     def _specific_base_command_through_rom(self, dump_full_path):
-        comm_args = [self._config.pg_dump(),
+        comm_args = [self._config.pg_dump,
                      '-U', self._config.postgresql_username,
                      '-Fc',
                      '-f', dump_full_path,
