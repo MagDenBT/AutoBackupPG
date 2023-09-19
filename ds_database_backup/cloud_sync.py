@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 
 from AutoBackupPG.ds_database_backup.exceptions import AWSTimeTooSkewedError, AWSBucketError, \
     RansomwareVirusTracesFound, AWSSpeedAutoAdjustmentError
-from AutoBackupPG.ds_database_backup.settings import SettingAWSClient
+from AutoBackupPG.ds_database_backup.settings import ConfigAWSClient
 from AutoBackupPG.ds_database_backup.utils import Utils
 
 
@@ -19,14 +19,14 @@ class BaseClient(ABC):
 
 class AWSClient(BaseClient):
 
-    def __init__(self, settings: SettingAWSClient):
-        self._settings = settings
+    def __init__(self, config: ConfigAWSClient):
+        self._config = config
         session = boto3.session.Session()
         self._aws_client = session.client(
             service_name='s3',
-            endpoint_url=settings.endpoint_url,
-            aws_access_key_id=settings.access_key_id,
-            aws_secret_access_key=settings.secret_access_key
+            endpoint_url=config.endpoint_url,
+            aws_access_key_id=config.access_key_id,
+            aws_secret_access_key=config.secret_access_key
         )
         self._cloud_backups = []
 
@@ -37,10 +37,10 @@ class AWSClient(BaseClient):
         self._check_bucket()
 
         local_cloud_paths = {}
-        if Utils.contain_files(self._settings.full_path_to_backups):
-            local_cloud_paths.update({self._settings.full_path_to_backups: self._settings.path_to_backups_cloud})
+        if Utils.contain_files(self._config.full_path_to_backups):
+            local_cloud_paths.update({self._config.full_path_to_backups: self._config.path_to_backups_cloud})
 
-        with_hash = self._settings.with_hash
+        with_hash = self._config.with_hash
         all_cloud_backups = self._get_objects_on_aws(with_hash=with_hash)
         for local_path, cloud_path in local_cloud_paths.items():
             for cloud_backup in all_cloud_backups:
@@ -61,7 +61,7 @@ class AWSClient(BaseClient):
         is_too_skewed = False
 
         try:
-            self._aws_client.list_objects(Bucket=self._settings.bucket)
+            self._aws_client.list_objects(Bucket=self._config.bucket)
         except ClientError as e:
             is_too_skewed = e.response.get('Error').get('Code') == 'RequestTimeTooSkewed'
 
@@ -69,7 +69,7 @@ class AWSClient(BaseClient):
 
     def _check_bucket(self) -> None:
         try:
-            self._aws_client.head_bucket(Bucket=self._settings.bucket)
+            self._aws_client.head_bucket(Bucket=self._config.bucket)
         except Exception as e:
             AWSBucketError(e)
 
@@ -79,14 +79,14 @@ class AWSClient(BaseClient):
         # noinspection PyBroadException
         try:
             for obj in \
-                    self._aws_client.list_objects_v2(Bucket=self._settings.bucket,
-                                                     Prefix=self._settings.path_to_backups_cloud)[
+                    self._aws_client.list_objects_v2(Bucket=self._config.bucket,
+                                                     Prefix=self._config.path_to_backups_cloud)[
                         'Contents']:
                 resource_name = obj['Key']
                 if resource_name.endswith('/') and only_files:
                     continue
                 if with_hash:
-                    md5 = Utils.get_md5_aws(self._aws_client, self._settings.bucket, resource_name)
+                    md5 = Utils.get_md5_aws(self._aws_client, self._config.bucket, resource_name)
                     item = {'Hash': md5, 'Path': resource_name}
                 else:
                     item = resource_name
@@ -138,8 +138,8 @@ class AWSClient(BaseClient):
 
     def _upload_file(self, local_file, target_file, adjust_bandwidth=True):
 
-        upload_config = TransferConfig(multipart_chunksize=self._settings.chunk_size,
-                                       max_bandwidth=self._settings.max_bandwidth_bytes)
+        upload_config = TransferConfig(multipart_chunksize=self._config.chunk_size,
+                                       max_bandwidth=self._config.max_bandwidth_bytes)
 
         from botocore.exceptions import (
             ConnectionClosedError,
@@ -148,23 +148,23 @@ class AWSClient(BaseClient):
         )
 
         try:
-            self._aws_client.upload_file(local_file, self._settings.bucket, target_file, Config=upload_config)
+            self._aws_client.upload_file(local_file, self._config.bucket, target_file, Config=upload_config)
         except (
                 ConnectionClosedError,
                 ReadTimeoutError,
                 ConnectTimeoutError,
         ):
-            if self._settings.max_bandwidth_bytes is None:
-                new_max_bandwidth_bytes = self._settings.bandwidth_limit
+            if self._config.max_bandwidth_bytes is None:
+                new_max_bandwidth_bytes = self._config.bandwidth_limit
             else:
-                new_max_bandwidth_bytes = self._settings.max_bandwidth_bytes / 100 * 70
+                new_max_bandwidth_bytes = self._config.max_bandwidth_bytes / 100 * 70
 
             if adjust_bandwidth:
-                if self._settings.threshold_bandwidth < new_max_bandwidth_bytes:
-                    self._settings.set_max_bandwidth_bytes(new_max_bandwidth_bytes)
+                if self._config.threshold_bandwidth < new_max_bandwidth_bytes:
+                    self._config.set_max_bandwidth_bytes(new_max_bandwidth_bytes)
                     self._upload_file(local_file, target_file, True)
                 else:
-                    raise AWSSpeedAutoAdjustmentError(self._settings.max_bandwidth_bytes / 125)
+                    raise AWSSpeedAutoAdjustmentError(self._config.max_bandwidth_bytes / 125)
 
     def _compute_files_to_upload(self, local_backups: [], root_local_path, path_cloud, with_hash=False):
         if with_hash:
@@ -179,7 +179,7 @@ class AWSClient(BaseClient):
             dir_name = os.path.basename(_dir)
             file_name_for_cloud = file_name = os.path.basename(l_backup)
             if not root_local_path.endswith(_dir):
-                file_name_for_cloud = f'{self._settings.aws_correct_folder_name(dir_name)}/{file_name}'
+                file_name_for_cloud = f'{self._config.aws_correct_folder_name(dir_name)}/{file_name}'
             l_add = True
             for cloud_backup in self._cloud_backups:
                 if cloud_backup.endswith(file_name):
@@ -197,9 +197,9 @@ class AWSClient(BaseClient):
             dir_name = os.path.basename(path_to_dir)
             file_name_for_cloud = file_name = os.path.basename(l_backup)
             if not root_local_path.endswith(path_to_dir):
-                file_name_for_cloud = f'{SettingAWSClient.aws_correct_folder_name(dir_name)}/{file_name}'
+                file_name_for_cloud = f'{ConfigAWSClient.aws_correct_folder_name(dir_name)}/{file_name}'
 
-            md5_local = Utils.get_md5(l_backup, self._settings.chunk_size)
+            md5_local = Utils.get_md5(l_backup, self._config.chunk_size)
             l_add = True
             for cloud_backup in self._cloud_backups:
                 if cloud_backup['Path'].endswith(file_name) and md5_local == cloud_backup['Hash']:
@@ -216,7 +216,7 @@ class AWSClient(BaseClient):
             objects = []
             for bck in extra_bck:
                 objects.append({'Key': bck})
-            self._aws_client.delete_objects(Bucket=self._settings.bucket, Delete={'Objects': objects})
+            self._aws_client.delete_objects(Bucket=self._config.bucket, Delete={'Objects': objects})
 
     def _get_extra_bck_on_cloud(self, local_cloud_paths: {}, with_hash=False):
         if with_hash:
@@ -246,7 +246,7 @@ class AWSClient(BaseClient):
         loca_files = {}
         for local_path, cloud_path in local_cloud_paths.items():
             loca_files_pre = Utils.get_objects_on_disk(local_path, only_files=True)
-            loca_files.update(Utils.add_hashs_to_local_files(loca_files_pre, self._settings.chunk_size))
+            loca_files.update(Utils.add_hashs_to_local_files(loca_files_pre, self._config.chunk_size))
             for cloud_file in self._cloud_backups:
                 cloud_file_name = os.path.basename(cloud_file['Path'])
                 to_delete = True
@@ -261,7 +261,7 @@ class AWSClient(BaseClient):
     def _delete_empty_dirs_on_aws(self):
         empty_dirs = self._empty_aws_cloud_dirs()
         try:
-            empty_dirs.remove(self._settings.path_to_backups_cloud + '/')
+            empty_dirs.remove(self._config.path_to_backups_cloud + '/')
         except KeyError:
             pass
 
@@ -271,7 +271,7 @@ class AWSClient(BaseClient):
         for path in empty_dirs:
             for_deletion.append({'Key': path})
 
-        self._aws_client.delete_objects(Bucket=self._settings.bucket, Delete={'Objects': for_deletion})
+        self._aws_client.delete_objects(Bucket=self._config.bucket, Delete={'Objects': for_deletion})
 
     def _empty_aws_cloud_dirs(self):
         obj_on_aws = self._get_objects_on_aws(only_files=False, with_hash=False)

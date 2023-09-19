@@ -8,7 +8,7 @@ from AutoBackupPG.ds_database_backup.exceptions import DriveNotExist, MandatoryP
     ArchiverNotFound, OneCDbNotFound
 
 
-class AbstractSettings(ABC):
+class AbstractConfig(ABC):
     _label: str = ''
 
     def __getitem__(self, item):
@@ -67,7 +67,7 @@ class AbstractSettings(ABC):
         return self._label
 
 
-class SettingPgBaseBackuper(AbstractSettings):
+class ConfigPgBaseBackuper(AbstractConfig):
     _path_to_backups: str = ''
     _custom_dir: str = ''
 
@@ -186,7 +186,7 @@ class SettingPgBaseBackuper(AbstractSettings):
         return self._path_to_7zip is not ''
 
 
-class SettingPgDumpBackuper(AbstractSettings):
+class ConfigPgDumpBackuper(AbstractConfig):
     _path_to_backups: str = ''
     _custom_dir: str = ''
 
@@ -309,7 +309,7 @@ class SettingPgDumpBackuper(AbstractSettings):
         return self._path_to_7zip is not ''
 
 
-class Setting1CFBBackuper(AbstractSettings):
+class Config1CFBBackuper(AbstractConfig):
     _path_to_backups: str = ''
     _custom_dir: str = ''
 
@@ -362,7 +362,7 @@ class Setting1CFBBackuper(AbstractSettings):
         return f'{self._path_to_backups}\\{self._custom_dir}\\{self._backup_type_dir}'
 
 
-class SettingAWSClient(AbstractSettings):
+class ConfigAWSClient(AbstractConfig):
     _path_to_backups: str = ''
     _custom_dir: str = ''
 
@@ -481,7 +481,7 @@ class SettingAWSClient(AbstractSettings):
         return f'/{self.custom_dir}'
 
 
-class SettingNonPgBaseCleaner(AbstractSettings):
+class ConfigNonPgBaseCleaner(AbstractConfig):
     _path_to_backups: str = ''
     _custom_dir: str = ''
 
@@ -538,7 +538,7 @@ class SettingNonPgBaseCleaner(AbstractSettings):
         return f'{self._path_to_backups}\\{self.custom_dir}'
 
 
-class SettingPgBaseCleaner(SettingNonPgBaseCleaner):
+class ConfigPgBaseCleaner(ConfigNonPgBaseCleaner):
     _path_to_wal_files: str = ''
     _use_simple_way_read_bck_date: bool = True
 

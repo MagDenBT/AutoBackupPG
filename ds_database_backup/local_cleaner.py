@@ -39,16 +39,16 @@ class AbstractCleaner(ABC):
 
 class Cleaner(AbstractCleaner):
 
-    def __init__(self, settings: SettingNonPgBaseCleaner):
-        self._settings = settings
+    def __init__(self, config: ConfigNonPgBaseCleaner):
+        self._config = config
 
     def delete_outdated_backups(self) -> None:
-        expire_date = Utils.calculate_expire_date(self._settings.storage_time)
+        expire_date = Utils.calculate_expire_date(self._config.storage_time)
         self._clean_backups(expire_date)
-        super()._delete_local_empty_dirs([self._settings.full_path_to_backups])
+        super()._delete_local_empty_dirs([self._config.full_path_to_backups])
 
     def _clean_backups(self, expire_date: datetime):
-        backups = Utils.get_objects_on_disk(self._settings.path_to_backups, only_files=True)
+        backups = Utils.get_objects_on_disk(self._config.path_to_backups, only_files=True)
         dic_backups = {}
 
         for backup in backups:
@@ -67,7 +67,7 @@ class Cleaner(AbstractCleaner):
             if backup_date < expire_date:
                 os.remove(backup)
                 dic_backups.pop(backup)
-            elif self._settings.keep_one_backup_per_day:
+            elif self._config.keep_one_backup_per_day:
                 older_backup_per_day = next(
                     (key for key, value in suitable_backups.items() if value == backup_date.date()), None)
 
@@ -79,7 +79,7 @@ class Cleaner(AbstractCleaner):
                 suitable_backups.update({backup: backup_date.date()})
             i += 1
 
-        leave_amount = self._settings.backups_leave_amount
+        leave_amount = self._config.backups_leave_amount
         if leave_amount > 0:
             self._backups_leave_n_plus_1(dic_backups, leave_amount)
 
@@ -97,8 +97,8 @@ class Cleaner(AbstractCleaner):
 
 class CleanerPgBaseBackups(AbstractCleaner):
 
-    def __init__(self, settings: SettingPgBaseCleaner):
-        self._settings = settings
+    def __init__(self, config: ConfigPgBaseCleaner):
+        self._config = config
         self._timezone_map = self._get_timezone_map()
 
     @staticmethod
@@ -334,15 +334,15 @@ class CleanerPgBaseBackups(AbstractCleaner):
         }
 
     def delete_outdated_backups(self) -> None:
-        expire_date = Utils.calculate_expire_date(self._settings.storage_time)
+        expire_date = Utils.calculate_expire_date(self._config.storage_time)
 
         self._clean_backups(expire_date)
-        if self._settings.handle_wal_files:
+        if self._config.handle_wal_files:
             self._clean_wals()
 
-        to_clean_paths = [self._settings.full_path_to_backups]
-        if self._settings.handle_wal_files:
-            to_clean_paths.append(self._settings.path_to_wal_files)
+        to_clean_paths = [self._config.full_path_to_backups]
+        if self._config.handle_wal_files:
+            to_clean_paths.append(self._config.path_to_wal_files)
         super()._delete_local_empty_dirs(to_clean_paths)
 
     def _clean_backups(self, expire_date):
@@ -351,10 +351,10 @@ class CleanerPgBaseBackups(AbstractCleaner):
         for backup in expired_backups:
             os.remove(backup)
 
-        if self._settings.keep_one_backup_per_day:
+        if self._config.keep_one_backup_per_day:
             self._remove_extra_per_day_backups()
 
-        leave_amount = self._settings.backups_leave_amount
+        leave_amount = self._config.backups_leave_amount
         if leave_amount > 0:
             self._backups_leave_n_plus_1(leave_amount)
 
@@ -418,7 +418,7 @@ class CleanerPgBaseBackups(AbstractCleaner):
     def _get_backups_with_dates(self):
         mask = '_backup_manifest'
         second_mask = '_base.'
-        backups = Utils.get_objects_on_disk(self._settings.full_path_to_backups, mask=mask,
+        backups = Utils.get_objects_on_disk(self._config.full_path_to_backups, mask=mask,
                                             or_second_mask=second_mask, only_files=True)
         result = {}
         for file in backups:
@@ -449,7 +449,7 @@ class CleanerPgBaseBackups(AbstractCleaner):
     def _get_expired_full_backups(self, expire_date: datetime):
         mask = '_backup_manifest'
         second_mask = '_base.'
-        full_bck = Utils.get_objects_on_disk(self._settings.full_path_to_backups, mask=mask,
+        full_bck = Utils.get_objects_on_disk(self._config.full_path_to_backups, mask=mask,
                                              or_second_mask=second_mask, only_files=True)
         result = []
 
@@ -467,10 +467,11 @@ class CleanerPgBaseBackups(AbstractCleaner):
         return list(set(result))
 
     def _read_full_bck_create_date(self, backup: str):
-        if self._settings.use_simple_way_read_bck_date:
+        if self._config.use_simple_way_read_bck_date:
             return datetime.datetime.fromtimestamp(os.path.getmtime(backup), Utils.get_local_zone())
 
         date_str = None
+        # noinspection PyBroadException
         try:
 
             if not tarfile.is_tarfile(backup):
@@ -541,13 +542,13 @@ class CleanerPgBaseBackups(AbstractCleaner):
         return date_str
 
     def _clean_wals(self):
-        wals = Utils.get_objects_on_disk(self._settings.path_to_wal_files, only_files=True)
+        wals = Utils.get_objects_on_disk(self._config.path_to_wal_files, only_files=True)
         if len(wals) == 0:
             return
 
         mask = '_backup_manifest'
         second_mask = '_base.'
-        full_bck = Utils.get_objects_on_disk(self._settings.full_path_to_backups, mask=mask,
+        full_bck = Utils.get_objects_on_disk(self._config.full_path_to_backups, mask=mask,
                                              or_second_mask=second_mask, only_files=True)
         oldest_date = datetime.datetime.now(Utils.get_local_zone())
         oldest_label = None
@@ -563,7 +564,7 @@ class CleanerPgBaseBackups(AbstractCleaner):
 
                 oldest_label = file_name.split(current_mask)[0]
         if oldest_label is not None:
-            wals = self._wals_to_remove(self._settings.path_to_wal_files, oldest_label)
+            wals = self._wals_to_remove(self._config.path_to_wal_files, oldest_label)
             for wal in wals:
                 os.remove(wal)
 
@@ -579,11 +580,12 @@ class CleanerPgBaseBackups(AbstractCleaner):
                 if '.' in filename:
                     filename = filename.split('.')[0]
                 filename = '0x' + filename
+                # noinspection PyBroadException
                 try:
                     cur_number = int(filename, base=16)
                     if cur_number < oldest_number:
                         to_remove.append(os.path.join(root, file))
-                except Exception:
+                except:
                     if delete_unsuitable:
                         to_remove.append(os.path.join(root, file))
 
