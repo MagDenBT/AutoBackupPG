@@ -4,8 +4,7 @@ import random
 from abc import ABC, abstractmethod
 from typing import Any, List
 
-from AutoBackupPG.ds_database_backup.exceptions import DriveNotExist, MandatoryPropertiesNotPresent, \
-    ArchiverNotFound, OneCDbNotFound, PathNotExist
+from AutoBackupPG.ds_database_backup.exceptions import DriveNotExist, MandatoryPropertiesNotPresent, PathNotExist
 
 
 class AbstractConfig(ABC):
@@ -177,10 +176,7 @@ class ConfigPgBaseBackuper(AbstractConfig):
 
     def set_path_to_7zip(self, value: str):
         super()._check_disk_for_parameter(value, 'path_to_7zip')
-        value += '\\7za.exe'
-        if not os.path.exists(value):
-            raise ArchiverNotFound(value)
-        self._path_to_7zip = value
+        self._path_to_7zip = value + '\\7za.exe'
 
     @property
     def temp_path(self) -> str:
@@ -299,10 +295,7 @@ class ConfigPgDumpBackuper(AbstractConfig):
 
     def set_path_to_7zip(self, value: str):
         super()._check_disk_for_parameter(value, 'path_to_7zip')
-        value += '\\7za.exe'
-        if not os.path.exists(value):
-            raise ArchiverNotFound(value)
-        self._path_to_7zip = value
+        self._path_to_7zip = value + '\\7za.exe'
 
     @property
     def temp_path(self) -> str:
@@ -359,9 +352,6 @@ class Config1CFBBackuper(AbstractConfig):
 
     def set_path_to_backups(self, value: str):
         super()._check_disk_for_parameter(value, 'path_to_backups')
-        value += self._cd_file_name
-        if not os.path.exists(value):
-            raise OneCDbNotFound(value)
         self._path_to_backups = value
 
     def set_custom_dir(self, value: str):
@@ -373,7 +363,7 @@ class Config1CFBBackuper(AbstractConfig):
 
     def set_path_to_1c_db(self, value: str):
         super()._check_disk_for_parameter(value, 'path_to_1c_db')
-        self._path_to_1c_db = value
+        self._path_to_1c_db = value + self._cd_file_name
 
     @property
     def path_to_7zip(self) -> str:
@@ -381,10 +371,7 @@ class Config1CFBBackuper(AbstractConfig):
 
     def set_path_to_7zip(self, value: str):
         super()._check_disk_for_parameter(value, 'path_to_7zip')
-        value += '\\7za.exe'
-        if not os.path.exists(value):
-            raise ArchiverNotFound(value)
-        self._path_to_7zip = value
+        self._path_to_7zip = value + '\\7za.exe'
 
     # Properties without class fields
     @property

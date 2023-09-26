@@ -15,30 +15,6 @@ class DriveNotExist(Exception):
         super().__init__(msg)
 
 
-class ArchiverNotFound(Exception):
-    MSG_TEMPLATE = (
-        'Ошибка инициализации настроек - не найден архиватор ({archiver_path})'
-    )
-
-    def __init__(self, archiver_path: str):
-        msg = self.MSG_TEMPLATE.format(
-            archiver_path=archiver_path,
-        )
-        super().__init__(msg)
-
-
-class OneCDbNotFound(Exception):
-    MSG_TEMPLATE = (
-        'Ошибка инициализации настроек - не найден файл базы данных 1с ({db_path})'
-    )
-
-    def __init__(self, db_path: str):
-        msg = self.MSG_TEMPLATE.format(
-            db_path=db_path,
-        )
-        super().__init__(msg)
-
-
 class MandatoryPropertiesNotPresent(Exception):
     MSG_TEMPLATE = (
         'Ошибка инициализации настроек. Отстутствуют обязательные параметры - {failed_properties}'
@@ -59,36 +35,6 @@ class PathNotExist(Exception):
     def __init__(self, parameter_and_path: {str:str}):
         msg = self.MSG_TEMPLATE.format(
             parameter_and_path = '\n'.join([f"Параметр - {key}, путь - {value}" for key, value in parameter_and_path.items()]),
-        )
-        super().__init__(msg)
-
-
-class PgBaseBackupNotFound(Exception):
-    MSG_TEMPLATE = (
-        'Ошибка инициализации настроек - не найден pg_basebackup\n'
-        'Проверьте путь до каталога сервера SQL ({sql_instance_path}) \n'
-        'или pg_basebackup({pg_basebackup_path})'
-    )
-
-    def __init__(self, pg_basebackup_path: str, sql_instance_path: str, ):
-        msg = self.MSG_TEMPLATE.format(
-            pg_basebackup_path=pg_basebackup_path,
-            sql_instance_path=sql_instance_path,
-        )
-        super().__init__(msg)
-
-
-class PgDumpNotFound(Exception):
-    MSG_TEMPLATE = (
-        'Ошибка инициализации настроек - не найден pg_dump\n'
-        'Проверьте путь до каталога сервера SQL ({sql_instance_path}) \n'
-        'или pg_dump({pg_dump_path})'
-    )
-
-    def __init__(self, pg_dump: str, sql_instance_path: str, ):
-        msg = self.MSG_TEMPLATE.format(
-            pg_dump=pg_dump,
-            sql_instance_path=sql_instance_path,
         )
         super().__init__(msg)
 
