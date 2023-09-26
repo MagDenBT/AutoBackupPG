@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Any, List
 
 from AutoBackupPG.ds_database_backup.exceptions import DriveNotExist, MandatoryPropertiesNotPresent, \
-    ArchiverNotFound, OneCDbNotFound, PgBaseBackupNotFound, PgDumpNotFound
+    ArchiverNotFound, OneCDbNotFound, PathNotExist
 
 
 class AbstractConfig(ABC):
@@ -16,9 +16,12 @@ class AbstractConfig(ABC):
 
     def __init__(self, params: {str: Any}):
         self._set_params(params)
-        mandatory_properties = self._mandatory_properties_for_check()
 
+        mandatory_properties = self._mandatory_properties_for_check()
         self._check_mandatory_properties(mandatory_properties)
+
+        paths_properties = self._paths_properties_for_check()
+        self._check_paths_properties(paths_properties)
 
     def _set_params(self, params: {str: Any}):
         for key, value in params.items():
@@ -30,6 +33,10 @@ class AbstractConfig(ABC):
 
     @abstractmethod
     def _mandatory_properties_for_check(self) -> List[str]:
+        pass
+
+    @abstractmethod
+    def _paths_properties_for_check(self) -> List[str]:
         pass
 
     def _check_mandatory_properties(self, mandatory_properties: List[str]):
@@ -44,6 +51,19 @@ class AbstractConfig(ABC):
 
         if failed_properties:
             raise MandatoryPropertiesNotPresent(failed_properties)
+
+    def _check_paths_properties(self, paths_properties: List[str]):
+        failed_properties = {}
+        for prop in paths_properties:
+            try:
+                prop_val = self[prop.lower()]
+                if (prop_val is not None or prop_val != '') and not os.path.exists(prop_val):
+                    failed_properties.update({prop: prop_val})
+            except AttributeError:
+                failed_properties.update({prop: ''})
+
+        if failed_properties:
+            raise PathNotExist(failed_properties)
 
     @staticmethod
     def _generate_label(use_millisec=False) -> str:
@@ -81,12 +101,6 @@ class ConfigPgBaseBackuper(AbstractConfig):
     _path_to_7zip: str = ''
     _temp_path: str = './temp'
 
-    def __init__(self, params: {str: Any}):
-        super(ConfigPgBaseBackuper, self).__init__(params)
-        if not os.path.exists(self.pg_basebackup):
-            raise PgBaseBackupNotFound(pg_basebackup_path=self.pg_basebackup,
-                                       sql_instance_path=self.postgresql_instance_path)
-
     def _mandatory_properties_for_check(self) -> List[str]:
         return [
             'path_to_backups',
@@ -94,6 +108,13 @@ class ConfigPgBaseBackuper(AbstractConfig):
             'postgresql_instance_path',
             'postgresql_username',
             'postgresql_password'
+        ]
+
+    def _paths_properties_for_check(self) -> List[str]:
+        return [
+            'postgresql_instance_path',
+            'pg_basebackup',
+            'path_to_7zip'
         ]
 
     @property
@@ -198,12 +219,6 @@ class ConfigPgDumpBackuper(AbstractConfig):
     _path_to_7zip: str = ''
     _temp_path: str = './temp'
 
-    def __init__(self, params: {str: Any}):
-        super(ConfigPgDumpBackuper, self).__init__(params)
-        if not os.path.exists(self.pg_dump):
-            raise PgDumpNotFound(pg_dump=self.pg_dump,
-                                 sql_instance_path=self.postgresql_instance_path)
-
     def _mandatory_properties_for_check(self) -> List[str]:
         return [
             'path_to_backups',
@@ -211,6 +226,13 @@ class ConfigPgDumpBackuper(AbstractConfig):
             'postgresql_instance_path',
             'postgresql_username',
             'postgresql_password'
+        ]
+
+    def _paths_properties_for_check(self) -> List[str]:
+        return [
+            'postgresql_instance_path',
+            'pg_dump',
+            'path_to_7zip'
         ]
 
     @property
@@ -329,6 +351,12 @@ class Config1CFBBackuper(AbstractConfig):
             'path_to_7zip',
         ]
 
+    def _paths_properties_for_check(self) -> List[str]:
+        return [
+            'path_to_1c_db',
+            'path_to_7zip'
+        ]
+
     def set_path_to_backups(self, value: str):
         super()._check_disk_for_parameter(value, 'path_to_backups')
         value += self._cd_file_name
@@ -393,6 +421,12 @@ class ConfigAWSClient(AbstractConfig):
             'aws_bucket',
             'aws_access_key_id',
             'aws_secret_access_key',
+        ]
+
+    def _paths_properties_for_check(self) -> List[str]:
+        return [
+            'path_to_backups',
+            'full_path_to_backups'
         ]
 
     @property
@@ -498,6 +532,12 @@ class ConfigNonPgBaseCleaner(AbstractConfig):
             'storage_time',
         ]
 
+    def _paths_properties_for_check(self) -> List[str]:
+        return [
+            'path_to_backups',
+            'full_path_to_backups'
+        ]
+
     @property
     def path_to_backups(self) -> str:
         return self._path_to_backups
@@ -544,6 +584,11 @@ class ConfigPgBaseCleaner(ConfigNonPgBaseCleaner):
     _path_to_wal_files: str = ''
     _use_simple_way_read_bck_date: bool = True
 
+    def _paths_properties_for_check(self) -> List[str]:
+        result = super(ConfigPgBaseCleaner, self)._paths_properties_for_check()
+        result.append('path_to_wal_files')
+        return result
+
     @property
     def path_to_wal_files(self) -> str:
         return self._path_to_wal_files
@@ -558,11 +603,6 @@ class ConfigPgBaseCleaner(ConfigNonPgBaseCleaner):
 
     def set_use_simple_way_read_bck_date(self, value: bool):
         self._use_simple_way_read_bck_date = value
-
-    # Properties without class fields
-    @property
-    def full_path_to_backups(self) -> str:
-        return f'{self._path_to_backups}\\{self.custom_dir}'
 
     @property
     def handle_wal_files(self) -> bool:

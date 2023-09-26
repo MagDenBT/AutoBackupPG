@@ -51,6 +51,18 @@ class MandatoryPropertiesNotPresent(Exception):
         super().__init__(msg)
 
 
+class PathNotExist(Exception):
+    MSG_TEMPLATE = (
+        'Ошибка инициализации настроек. Пути не существуют: {parameter_and_path}'
+    )
+
+    def __init__(self, parameter_and_path: {str:str}):
+        msg = self.MSG_TEMPLATE.format(
+            parameter_and_path = '\n'.join([f"Параметр - {key}, путь - {value}" for key, value in parameter_and_path.items()]),
+        )
+        super().__init__(msg)
+
+
 class PgBaseBackupNotFound(Exception):
     MSG_TEMPLATE = (
         'Ошибка инициализации настроек - не найден pg_basebackup\n'

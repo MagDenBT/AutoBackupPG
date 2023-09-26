@@ -3,13 +3,18 @@ import shutil
 import subprocess
 from abc import ABC, abstractmethod
 
-from AutoBackupPG.ds_database_backup.exceptions import PgBaseBackupNotFound, PgBaseBackupCreateError, \
+from AutoBackupPG.ds_database_backup.exceptions import PgBaseBackupCreateError, \
     ArchiveCreateError, PgDumpRunError, PgDumpCreateError, OneCFBBackupCreateError
 from AutoBackupPG.ds_database_backup.configs import ConfigPgBaseBackuper, ConfigPgDumpBackuper, Config1CFBBackuper
+from AutoBackupPG.ds_database_backup.executor import Executor
+
 from AutoBackupPG.ds_database_backup.utils import Utils
 
 
-class AbstractBackuper(ABC):
+class AbstractBackuper(Executor):
+
+    def start(self):
+        self.create_backup()
 
     @abstractmethod
     def create_backup(self) -> None:

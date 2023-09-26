@@ -6,30 +6,21 @@
 import json
 import traceback
 
-from lib.common import bootstrap
+from AutoBackupPG.KIP.src.lib.common import bootstrap
 # Экспорт базового класса для сценария. Он отвечает за настройку логгирования,
 # базовую валидацию параметров, перехват исключений и корректное завершение
 # скрипта и т.д.
-from lib.common.base_scenario import BaseScenario
+from AutoBackupPG.KIP.src.lib.common.base_scenario import BaseScenario
 # Экспорт класса ошибок.
-from lib.common.errors import SACError
-from lib.common.logger import global_logger
-from lib.common.config import StrPathExpanded
+from AutoBackupPG.KIP.src.lib.common.errors import SACError
+from AutoBackupPG.KIP.src.lib.common.logger import global_logger
+from AutoBackupPG.KIP.src.lib.common.config import StrPathExpanded
 
+from AutoBackupPG.KIP.src.lib.utils.fs import remove_file_or_directory
 
-from lib.utils.fs import remove_file_or_directory
-
-import pickle
-import os
-import subprocess
-from datetime import datetime
-import random
-import requests as requests
 
 # CLoud settings
 # from lib.common.logger import global_logger
-
-from PGSQL_Backuper import Manager
 
 
 class PGSQL_SyncrFor1cKiP(BaseScenario):
@@ -54,6 +45,12 @@ class PGSQL_SyncrFor1cKiP(BaseScenario):
             ("test-name", lambda: True, False),
         ]
 
+    def __check_config(self):
+        try:
+            create_ds_config(self.config.scenario_context)
+        except Exception as e:
+            raise SACError(code='ARGS_ERROR', args=str(e))
+
     def _real(self):
 
         # For debug
@@ -75,7 +72,7 @@ class PGSQL_SyncrFor1cKiP(BaseScenario):
             manager = Manager(new_args=self.config.scenario_context, clean_backups=True)
         except Exception as e:
             error = str(e)
-            global_logger.error( message=error)
+            global_logger.error(message=error)
             raise SACError(24, error)
 
         try:
