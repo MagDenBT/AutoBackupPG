@@ -2,6 +2,18 @@ import subprocess
 from typing import List
 
 
+class ModuleNotFound(Exception):
+    MSG_TEMPLATE = (
+        'Ошибка инициализации настроек. Модуль скрипта {module_name} не найден'
+    )
+
+    def __init__(self, module_name: str):
+        msg = self.MSG_TEMPLATE.format(
+            module_name=module_name,
+        )
+        super().__init__(msg)
+
+
 class DriveNotExist(Exception):
     MSG_TEMPLATE = (
         'Ошибка инициализации настроек. Параметр {parameter_name} - Корневой диск в {path} не существует'
@@ -32,9 +44,24 @@ class PathNotExist(Exception):
         'Ошибка инициализации настроек. Пути не существуют: {parameter_and_path}'
     )
 
-    def __init__(self, parameter_and_path: {str:str}):
+    def __init__(self, parameter_and_path: {str: str}):
         msg = self.MSG_TEMPLATE.format(
-            parameter_and_path = '\n'.join([f"Параметр - {key}, путь - {value}" for key, value in parameter_and_path.items()]),
+            parameter_and_path='\n'.join(
+                [f"Параметр - {key}, путь - {value}" for key, value in parameter_and_path.items()]),
+        )
+        super().__init__(msg)
+
+
+class ConfigTypeMismatch(Exception):
+    MSG_TEMPLATE = (
+        'Ошибка создания модуля {module_name}. Получены аргументы типа {received_type}, а ожидалось - {expected_type}'
+    )
+
+    def __init__(self, received_type: str, expected_type: str, module_name: str):
+        msg = self.MSG_TEMPLATE.format(
+            received_type=received_type,
+            expected_type=expected_type,
+            module_name=module_name
         )
         super().__init__(msg)
 

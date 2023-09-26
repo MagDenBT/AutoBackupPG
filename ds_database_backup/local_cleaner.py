@@ -2,50 +2,28 @@ import lzma
 import tarfile
 import json
 from dateutil import parser
-
-from typing import Dict
-
 from AutoBackupPG.ds_database_backup.configs import *
+from AutoBackupPG.ds_database_backup.executor import Executor
 from AutoBackupPG.ds_database_backup.utils import Utils
 
 
-class AbstractCleaner(ABC):
-    @abstractmethod
-    def delete_outdated_backups(self) -> None:
-        pass
-
-    @staticmethod
-    def _delete_local_empty_dirs(paths: List[str]) -> None:
-        for path in paths:
-            if os.path.exists(path):
-                for root, dirs, files in os.walk(path):
-                    for _dir in dirs:
-                        dir_path = os.path.join(root, _dir)
-                        AbstractCleaner._safely_delete_dir(dir_path)
-
-    @staticmethod
-    def _safely_delete_dir(path: str) -> bool:
-        delete_it = True
-        for root, dirs, files in os.walk(path):
-            for _dir in dirs:
-                delete_it = AbstractCleaner._safely_delete_dir(os.path.join(root, _dir))
-            for _ in files:
-                delete_it = False
-                break
-        if delete_it:
-            os.rmdir(path)
-        return delete_it
-
-
-class Cleaner(AbstractCleaner):
+class Cleaner(Executor):
 
     def __init__(self, config: ConfigNonPgBaseCleaner):
+        super().__init__(config)
         self._config = config
 
-    def delete_outdated_backups(self) -> None:
+    @staticmethod
+    def config_class():
+        return ConfigNonPgBaseCleaner
+
+    def start(self):
+        self._delete_outdated_backups()
+
+    def _delete_outdated_backups(self) -> None:
         expire_date = Utils.calculate_expire_date(self._config.storage_time)
         self._clean_backups(expire_date)
-        super()._delete_local_empty_dirs([self._config.full_path_to_backups])
+        Utils.delete_local_empty_dirs([self._config.full_path_to_backups])
 
     def _clean_backups(self, expire_date: datetime):
         backups = Utils.get_objects_on_disk(self._config.path_to_backups, only_files=True)
@@ -84,7 +62,7 @@ class Cleaner(AbstractCleaner):
             self._backups_leave_n_plus_1(dic_backups, leave_amount)
 
     @staticmethod
-    def _backups_leave_n_plus_1(sorted_backups: Dict[str, datetime], leave_amount: int):
+    def _backups_leave_n_plus_1(sorted_backups: {str, datetime}, leave_amount: int):
         i = 0
         items = list(sorted_backups.items())
         while i < len(items):
@@ -95,14 +73,22 @@ class Cleaner(AbstractCleaner):
             i += 1
 
 
-class CleanerPgBaseBackups(AbstractCleaner):
+class CleanerPgBaseBackups(Executor):
 
     def __init__(self, config: ConfigPgBaseCleaner):
-        self._config = config
+        super().__init__(config)
         self._timezone_map = self._get_timezone_map()
+        self._config = config
 
     @staticmethod
-    def _get_timezone_map() -> Dict[str:int]:
+    def config_class():
+        return ConfigPgBaseCleaner
+
+    def start(self):
+        self._delete_outdated_backups()
+
+    @staticmethod
+    def _get_timezone_map() -> {str: int}:
         return {
             "A": 1 * 3600,
             "ACDT": 10.5 * 3600,
@@ -333,7 +319,7 @@ class CleanerPgBaseBackups(AbstractCleaner):
             "Z": 0 * 3600,
         }
 
-    def delete_outdated_backups(self) -> None:
+    def _delete_outdated_backups(self) -> None:
         expire_date = Utils.calculate_expire_date(self._config.storage_time)
 
         self._clean_backups(expire_date)
@@ -343,7 +329,7 @@ class CleanerPgBaseBackups(AbstractCleaner):
         to_clean_paths = [self._config.full_path_to_backups]
         if self._config.handle_wal_files:
             to_clean_paths.append(self._config.path_to_wal_files)
-        super()._delete_local_empty_dirs(to_clean_paths)
+        Utils.delete_local_empty_dirs(to_clean_paths)
 
     def _clean_backups(self, expire_date):
         expired_backups = self._get_expired_full_backups(expire_date)

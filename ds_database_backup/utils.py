@@ -94,6 +94,7 @@ class Utils:
     @staticmethod
     def get_md5_aws(session_client, bucket_name, resource_name):
 
+        # noinspection PyBroadException
         try:
             md5sum = session_client.head_object(
                 Bucket=bucket_name,
@@ -137,3 +138,25 @@ class Utils:
     @staticmethod
     def calculate_expire_date(storage_time: int) -> datetime:
         return datetime.datetime.now(Utils.get_local_zone()) - datetime.timedelta(seconds=storage_time)
+
+    @staticmethod
+    def delete_local_empty_dirs(paths: List[str]) -> None:
+        for path in paths:
+            if os.path.exists(path):
+                for root, dirs, files in os.walk(path):
+                    for _dir in dirs:
+                        dir_path = os.path.join(root, _dir)
+                        Utils._delete_dir_if_empty(dir_path)
+
+    @staticmethod
+    def _delete_dir_if_empty(path: str) -> bool:
+        delete_it = True
+        for root, dirs, files in os.walk(path):
+            for _dir in dirs:
+                delete_it = Utils._delete_dir_if_empty(os.path.join(root, _dir))
+            for _ in files:
+                delete_it = False
+                break
+        if delete_it:
+            os.rmdir(path)
+        return delete_it

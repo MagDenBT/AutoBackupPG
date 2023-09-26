@@ -1,25 +1,18 @@
 import os
 from typing import List
-
 import boto3
 from boto3.s3.transfer import TransferConfig
-from abc import ABC, abstractmethod
-
 from AutoBackupPG.ds_database_backup.exceptions import AWSTimeTooSkewedError, AWSBucketError, \
     RansomwareVirusTracesFound, AWSSpeedAutoAdjustmentError
 from AutoBackupPG.ds_database_backup.configs import ConfigAWSClient
+from AutoBackupPG.ds_database_backup.executor import Executor
 from AutoBackupPG.ds_database_backup.utils import Utils
 
 
-class BaseClient(ABC):
-    @abstractmethod
-    def sync(self) -> None:
-        pass
-
-
-class AWSClient(BaseClient):
+class AWSClient(Executor):
 
     def __init__(self, config: ConfigAWSClient):
+        super().__init__(config)
         self._config = config
         session = boto3.session.Session()
         self._aws_client = session.client(
@@ -30,7 +23,14 @@ class AWSClient(BaseClient):
         )
         self._cloud_backups = []
 
-    def sync(self) -> None:
+    @staticmethod
+    def config_class():
+        return ConfigAWSClient
+
+    def start(self):
+        self._sync()
+
+    def _sync(self) -> None:
         if self._local_time_is_too_skewed():
             raise AWSTimeTooSkewedError()
 

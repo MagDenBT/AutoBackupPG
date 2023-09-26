@@ -1,32 +1,27 @@
 import os
 import shutil
 import subprocess
-from abc import ABC, abstractmethod
-
 from AutoBackupPG.ds_database_backup.exceptions import PgBaseBackupCreateError, \
     ArchiveCreateError, PgDumpRunError, PgDumpCreateError, OneCFBBackupCreateError
 from AutoBackupPG.ds_database_backup.configs import ConfigPgBaseBackuper, ConfigPgDumpBackuper, Config1CFBBackuper
 from AutoBackupPG.ds_database_backup.executor import Executor
-
 from AutoBackupPG.ds_database_backup.utils import Utils
 
 
-class AbstractBackuper(Executor):
-
-    def start(self):
-        self.create_backup()
-
-    @abstractmethod
-    def create_backup(self) -> None:
-        pass
-
-
-class PgBaseBackuper(AbstractBackuper):
+class PgBaseBackuper(Executor):
 
     def __init__(self, config: ConfigPgBaseBackuper):
+        super(PgBaseBackuper, self).__init__(config)
         self._config = config
 
-    def create_backup(self):
+    @staticmethod
+    def config_class():
+        return ConfigPgBaseBackuper
+
+    def start(self):
+        self._create_backup()
+
+    def _create_backup(self):
         self._clear_dir(self._config.temp_path)
 
         my_env = os.environ.copy()
@@ -98,12 +93,20 @@ class PgBaseBackuper(AbstractBackuper):
                         f'{target_dir}\\{label}__{os.path.basename(file)}')
 
 
-class PgDumpBackuper(AbstractBackuper):
+class PgDumpBackuper(Executor):
 
     def __init__(self, config: ConfigPgDumpBackuper):
+        super().__init__(config)
         self._config = config
 
-    def create_backup(self):
+    @staticmethod
+    def config_class():
+        return ConfigPgDumpBackuper
+
+    def start(self):
+        self._create_backup()
+
+    def _create_backup(self):
 
         all_bases = self._config.database_name is None or self._config.database_name == ""
 
@@ -228,12 +231,20 @@ class PgDumpBackuper(AbstractBackuper):
             raise ArchiveCreateError(e)
 
 
-class OneCFbBackuper:
+class OneCFbBackuper(Executor):
 
     def __init__(self, config: Config1CFBBackuper):
+        super().__init__(config)
         self._config = config
 
-    def _create_backup(self):
+    @staticmethod
+    def config_class():
+        return Config1CFBBackuper
+
+    def start(self):
+        self._create_backup()
+
+    def _create_backup(self) -> None:
         target_file = f'{self._config.full_path_to_backups}\\{self._config.label}_{self._config.path_to_1c_db}.xz'
 
         comm_args = [f'{self._config.path_to_7zip}', 'a', target_file, '-ssw', self._config.path_to_1c_db]

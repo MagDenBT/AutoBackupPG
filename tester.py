@@ -1,8 +1,4 @@
 
-
-from PGSQL_Backuper import Manager as ManagerPostgreSQLBackuper
-
-
 def test_pg():
  
     p_create_full_and_dump_STDOUT_without_7zip_args = {
