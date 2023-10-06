@@ -4,7 +4,8 @@ import random
 from abc import ABC, abstractmethod
 from typing import Any, List
 
-from AutoBackupPG.ds_database_backup.exceptions import DriveNotExist, MandatoryPropertiesNotPresent, PathNotExist
+from AutoBackupPG.ds_database_backup.exceptions import DriveNotExist, MandatoryPropertiesNotPresent, PathNotExist, \
+    DrivesNotExist
 
 
 class AbstractConfig(ABC):
@@ -20,6 +21,7 @@ class AbstractConfig(ABC):
         self._check_mandatory_properties(mandatory_properties)
 
         paths_properties = self._paths_properties_for_check()
+        self._check_root_drives_from_paths_properties(paths_properties)
         self._check_paths_properties(paths_properties)
 
     def _set_params(self, params: {str: Any}):
@@ -51,12 +53,27 @@ class AbstractConfig(ABC):
         if failed_properties:
             raise MandatoryPropertiesNotPresent(failed_properties)
 
+    def _check_root_drives_from_paths_properties(self, paths_properties: List[str]):
+        failed_properties = {}
+        for prop in paths_properties:
+            try:
+                prop_val = self[prop.lower()]
+                if prop_val is not None and prop_val != '':
+                    root_drive, _ = os.path.splitdrive(prop_val)
+                    if not os.path.exists(root_drive):
+                        failed_properties.update({prop: prop_val})
+            except AttributeError:
+                pass
+
+        if failed_properties:
+            raise DrivesNotExist(failed_properties)
+
     def _check_paths_properties(self, paths_properties: List[str]):
         failed_properties = {}
         for prop in paths_properties:
             try:
                 prop_val = self[prop.lower()]
-                if (prop_val is not None or prop_val != '') and not os.path.exists(prop_val):
+                if prop_val is not None and prop_val != '' and not os.path.exists(prop_val):
                     failed_properties.update({prop: prop_val})
             except AttributeError:
                 failed_properties.update({prop: ''})
@@ -383,11 +400,11 @@ class ConfigAWSClient(AbstractConfig):
     _path_to_backups: str = ''
     _custom_dir: str = ''
 
-    _aws_access_key_id: str = ''
-    _aws_secret_access_key: str = ''
-    _aws_endpoint_url: str = 'https://storage.yandexcloud.net'
-    _aws_bucket: str = ''
-    _aws_chunk_size: int = 8388608
+    _access_key_id: str = ''
+    _secret_access_key: str = ''
+    _endpoint_url: str = 'https://storage.yandexcloud.net'
+    _bucket: str = ''
+    _chunk_size: int = 8388608
     _with_hash: bool = False
 
     _bandwidth_limit: int = 9 * 1000 * 1000 / 8  # Speed - 9Mbit/s
@@ -405,9 +422,9 @@ class ConfigAWSClient(AbstractConfig):
         return [
             'path_to_backups',
             'custom_dir',
-            'aws_bucket',
-            'aws_access_key_id',
-            'aws_secret_access_key',
+            'bucket',
+            'access_key_id',
+            'secret_access_key',
         ]
 
     def _paths_properties_for_check(self) -> List[str]:
@@ -433,38 +450,38 @@ class ConfigAWSClient(AbstractConfig):
 
     @property
     def access_key_id(self) -> str:
-        return self._aws_access_key_id
+        return self._access_key_id
 
-    def set_aws_access_key_id(self, value: str):
-        self._aws_access_key_id = value
+    def set_access_key_id(self, value: str):
+        self._access_key_id = value
 
     @property
     def secret_access_key(self) -> str:
-        return self._aws_secret_access_key
+        return self._secret_access_key
 
-    def set_aws_secret_access_key(self, value: str):
-        self._aws_secret_access_key = value
+    def set_secret_access_key(self, value: str):
+        self._secret_access_key = value
 
     @property
     def endpoint_url(self) -> str:
-        return self._aws_endpoint_url
+        return self._endpoint_url
 
-    def set_aws_endpoint_url(self, value: str):
-        self._aws_endpoint_url = value
+    def set_endpoint_url(self, value: str):
+        self._endpoint_url = value
 
     @property
     def bucket(self) -> str:
-        return self._aws_bucket
+        return self._bucket
 
-    def set_aws_bucket(self, value: str):
-        self._aws_bucket = value
+    def set_bucket(self, value: str):
+        self._bucket = value
 
     @property
     def chunk_size(self) -> int:
-        return self._aws_chunk_size
+        return self._chunk_size
 
-    def set_aws_chunk_size(self, value: int):
-        self._aws_chunk_size = value
+    def set_chunk_size(self, value: int):
+        self._chunk_size = value
 
     @property
     def with_hash(self) -> bool:

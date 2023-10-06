@@ -3,7 +3,7 @@ from AutoBackupPG.src.lib.common.base_scenario import BaseScenario
 from AutoBackupPG.src.lib import SACError
 from AutoBackupPG.src.lib import global_logger
 
-from AutoBackupPG.ds_database_backup.executor import Builder, ModuleFinder
+from AutoBackupPG.ds_database_backup.executor import DsBuilder, ModuleFinder
 
 
 class DsSystemScenarioForKIP(BaseScenario):
@@ -16,7 +16,7 @@ class DsSystemScenarioForKIP(BaseScenario):
     def __check_config(self):
         module_name = self.config["module_name"]
         try:
-            Builder\
+            DsBuilder\
                 .build(ModuleFinder.find_by_name(module_name))\
                 .initialize_config(self.config.scenario_context)
         except Exception as e:
@@ -27,7 +27,7 @@ class DsSystemScenarioForKIP(BaseScenario):
         try:
             global_logger.info(message=f'Старт {module_name}')
 
-            Builder \
+            DsBuilder \
                 .build(ModuleFinder.find_by_name(module_name)) \
                 .initialize_config(self.config.scenario_context)\
                 .start()

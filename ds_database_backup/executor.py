@@ -48,7 +48,7 @@ class ModuleFinder(Enum):
         raise ModuleNotFound(module_name)
 
 
-class Builder(object):
+class DsBuilder(object):
     class Prototype(object):
 
         def __init__(self, module_type: ModuleFinder):
@@ -61,4 +61,4 @@ class Builder(object):
 
     @staticmethod
     def build(module_type: ModuleFinder):
-        return Builder.Prototype(module_type)
+        return DsBuilder.Prototype(module_type)

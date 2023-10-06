@@ -27,6 +27,19 @@ class DriveNotExist(Exception):
         super().__init__(msg)
 
 
+class DrivesNotExist(Exception):
+    MSG_TEMPLATE = (
+        'Ошибка инициализации настроек. В параметрах указаны несуществующие корневые диски:\n{parameter_and_path}'
+    )
+
+    def __init__(self, parameter_and_path: {str: str}):
+        msg = self.MSG_TEMPLATE.format(
+            parameter_and_path='\n'.join(
+                [f"Параметр - {key}, путь - {value}" for key, value in parameter_and_path.items()]),
+        )
+        super().__init__(msg)
+
+
 class MandatoryPropertiesNotPresent(Exception):
     MSG_TEMPLATE = (
         'Ошибка инициализации настроек. Отстутствуют обязательные параметры - {failed_properties}'
@@ -41,7 +54,7 @@ class MandatoryPropertiesNotPresent(Exception):
 
 class PathNotExist(Exception):
     MSG_TEMPLATE = (
-        'Ошибка инициализации настроек. Пути не существуют: {parameter_and_path}'
+        'Ошибка инициализации настроек. Пути не существуют:\n{parameter_and_path}'
     )
 
     def __init__(self, parameter_and_path: {str: str}):
