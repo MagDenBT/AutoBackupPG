@@ -10,6 +10,11 @@ from AutoBackupPG.ds_database_backup.exceptions import DriveNotExist, MandatoryP
 
 class AbstractConfig(ABC):
     _label: str = ''
+    backup_type_dirs = {
+        'full': 'Full',
+        'dumps': 'Dumps',
+        'onec': 'OneC_file_bases',
+    }
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -207,7 +212,7 @@ class ConfigPgBaseBackuper(AbstractConfig):
     # Properties without class fields
     @property
     def backup_type_dir(self):
-        return "Full"
+        return super(ConfigPgBaseBackuper, self).backup_type_dirs.get('full')
 
     @property
     def full_path_to_backups(self) -> str:
@@ -215,7 +220,7 @@ class ConfigPgBaseBackuper(AbstractConfig):
 
     @property
     def use_external_archiver(self) -> bool:
-        return self._path_to_7zip is not ''
+        return self._path_to_7zip != ''
 
 
 class ConfigPgDumpBackuper(AbstractConfig):
@@ -326,7 +331,7 @@ class ConfigPgDumpBackuper(AbstractConfig):
     # Properties without class fields
     @property
     def backup_type_dir(self):
-        return "Dumps"
+        return super(ConfigPgDumpBackuper, self).backup_type_dirs.get('dumps')
 
     @property
     def full_path_to_backups(self) -> str:
@@ -342,7 +347,7 @@ class ConfigPgDumpBackuper(AbstractConfig):
 
     @property
     def use_external_archiver(self) -> bool:
-        return self._path_to_7zip is not ''
+        return self._path_to_7zip != ''
 
 
 class Config1CFBBackuper(AbstractConfig):
@@ -351,7 +356,6 @@ class Config1CFBBackuper(AbstractConfig):
 
     _path_to_1c_db: str = ''
     _path_to_7zip: str = ''
-    _backup_type_dir: str = 'OneC_file_bases'
     _cd_file_name: str = '1Cv8.1CD'
 
     def _mandatory_properties_for_check(self) -> List[str]:
@@ -368,9 +372,17 @@ class Config1CFBBackuper(AbstractConfig):
             'path_to_7zip'
         ]
 
+    @property
+    def path_to_backups(self) -> str:
+        return self._path_to_backups
+
     def set_path_to_backups(self, value: str):
         super()._check_disk_for_parameter(value, 'path_to_backups')
         self._path_to_backups = value
+
+    @property
+    def custom_dir(self) -> str:
+        return self._custom_dir
 
     def set_custom_dir(self, value: str):
         self._custom_dir = value
@@ -381,7 +393,7 @@ class Config1CFBBackuper(AbstractConfig):
 
     def set_path_to_1c_db(self, value: str):
         super()._check_disk_for_parameter(value, 'path_to_1c_db')
-        self._path_to_1c_db = value + self._cd_file_name
+        self._path_to_1c_db = value + '\\' + self.cd_file_name
 
     @property
     def path_to_7zip(self) -> str:
@@ -393,8 +405,16 @@ class Config1CFBBackuper(AbstractConfig):
 
     # Properties without class fields
     @property
+    def cd_file_name(self) -> str:
+        return self._cd_file_name
+
+    @property
+    def backup_type_dir(self):
+        return super(Config1CFBBackuper, self).backup_type_dirs.get('onec')
+
+    @property
     def full_path_to_backups(self) -> str:
-        return f'{self._path_to_backups}\\{self._custom_dir}\\{self._backup_type_dir}'
+        return f'{self._path_to_backups}\\{self._custom_dir}\\{self.backup_type_dir}'
 
 
 class ConfigAWSClient(AbstractConfig):
@@ -522,9 +542,10 @@ class ConfigAWSClient(AbstractConfig):
         return f'/{self.custom_dir}'
 
 
-class ConfigNonPgBaseCleaner(AbstractConfig):
+class ConfigCleaner(AbstractConfig):
     _path_to_backups: str = ''
     _custom_dir: str = ''
+    _path_to_wal_files: str = ''
 
     _backups_leave_amount: int = 0
     _keep_one_backup_per_day: bool = True
@@ -540,7 +561,8 @@ class ConfigNonPgBaseCleaner(AbstractConfig):
     def _paths_properties_for_check(self) -> List[str]:
         return [
             'path_to_backups',
-            'full_path_to_backups'
+            'full_path_to_backups',
+            'path_to_wal_files'
         ]
 
     @property
@@ -557,6 +579,14 @@ class ConfigNonPgBaseCleaner(AbstractConfig):
 
     def set_custom_dir(self, value: str):
         self._custom_dir = value
+
+    @property
+    def path_to_wal_files(self) -> str:
+        return self._path_to_wal_files
+
+    def set_path_to_wal_files(self, value: str):
+        super()._check_disk_for_parameter(value, 'path_to_wal_files')
+        self._path_to_wal_files = value
 
     @property
     def backups_leave_amount(self) -> int:
@@ -584,31 +614,7 @@ class ConfigNonPgBaseCleaner(AbstractConfig):
     def full_path_to_backups(self) -> str:
         return f'{self._path_to_backups}\\{self.custom_dir}'
 
-
-class ConfigPgBaseCleaner(ConfigNonPgBaseCleaner):
-    _path_to_wal_files: str = ''
-    _use_simple_way_read_bck_date: bool = True
-
-    def _paths_properties_for_check(self) -> List[str]:
-        result = super(ConfigPgBaseCleaner, self)._paths_properties_for_check()
-        result.append('path_to_wal_files')
-        return result
-
-    @property
-    def path_to_wal_files(self) -> str:
-        return self._path_to_wal_files
-
-    def set_path_to_wal_files(self, value: str):
-        super()._check_disk_for_parameter(value, 'path_to_wal_files')
-        self._path_to_wal_files = value
-
-    @property
-    def use_simple_way_read_bck_date(self) -> bool:
-        return self._use_simple_way_read_bck_date
-
-    def set_use_simple_way_read_bck_date(self, value: bool):
-        self._use_simple_way_read_bck_date = value
-
     @property
     def handle_wal_files(self) -> bool:
-        return self._path_to_wal_files is not ''
+        return self._path_to_wal_files != ''
+

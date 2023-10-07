@@ -36,7 +36,6 @@ class BackupersSet:
         # 'pg_basebackup': r'C:\backup\test_suite\pg_basebackup_14.6\pg_basebackup.exe',
     }
 
-
     pg_dump = {
         'database_name': r'test_ds',
         'use_temp_dump': False,
@@ -59,7 +58,7 @@ class SyncSet:
     }
 
 
-class NonPgBaseCleanerSet:
+class CleanerSet:
     config = {
         'path_to_backups': CommonSet.path_to_backups,
         'custom_dir': CommonSet.custom_dir,
@@ -69,14 +68,10 @@ class NonPgBaseCleanerSet:
         'storage_time': 7 * 24 * 60 * 60,
     }
 
-
-class PgBaseCleanerSet:
-    config = NonPgBaseCleanerSet.config.update(
-        {
-            'path_to_wal_files': '',
-            'use_simple_way_read_bck_date': True
-        }
-    )
+    wal_config = config.copy()
+    wal_config.update({
+        'path_to_wal_files': '',
+    })
 
 
 class BackupTestCases:
@@ -189,13 +184,23 @@ class BackupTestCases:
 
 
 class CleanerTestCases:
-    class NonPgBase:
-        def clean(self):
-            pass
+    class LC:
 
-    class PgBase:
         def clean(self):
-            pass
+            config = CleanerSet.config
+
+            DsBuilder \
+                .build(ModuleFinder.CLEANER) \
+                .initialize_config(config) \
+                .start()
+
+        def clean_with_wals(self):
+            config = CleanerSet.wal_config
+
+            DsBuilder \
+                .build(ModuleFinder.CLEANER) \
+                .initialize_config(config) \
+                .start()
 
 
 class SyncTestCases:
@@ -203,31 +208,40 @@ class SyncTestCases:
         pass
 
 
+def run_backup_test_cases():
+    backup_test_cases = BackupTestCases()
 
-backupTestCases = BackupTestCases()
+    backup_test_cases.PG().create_dump_by_base_name_rom()
+    time.sleep(0)
+    backup_test_cases.PG().create_dump_by_base_name_with_archiver_rom()
+    time.sleep(0)
+    backup_test_cases.PG().create_dumps_for_all_bases_rom()
+    time.sleep(0)
+    backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_rom()
+    time.sleep(0)
+
+    backup_test_cases.PG().create_dump_by_base_name_RAM()
+    time.sleep(0)
+    backup_test_cases.PG().create_dump_by_base_name_with_archiver_RAM()
+    time.sleep(0)
+    backup_test_cases.PG().create_dumps_for_all_bases_RAM()
+    time.sleep(0)
+    backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_RAM()
+    time.sleep(0)
+
+    backup_test_cases.PG().create_pg_base()
+    time.sleep(0)
+    backup_test_cases.PG().create_pg_base_with_archiver()
+    time.sleep(0)
+
+    backup_test_cases.OneC().create()
 
 
-backupTestCases.PG().create_dump_by_base_name_rom()
-time.sleep(1)
-backupTestCases.PG().create_dump_by_base_name_with_archiver_rom()
-time.sleep(1)
-backupTestCases.PG().create_dumps_for_all_bases_rom()
-time.sleep(1)
-backupTestCases.PG().create_dumps_for_all_bases_with_archiver_rom()
-time.sleep(1)
+def run_cleaner_test_cases():
+    cleaner_test_cases = CleanerTestCases()
 
-backupTestCases.PG().create_dump_by_base_name_RAM()
-time.sleep(1)
-backupTestCases.PG().create_dump_by_base_name_with_archiver_RAM()
-time.sleep(1)
-backupTestCases.PG().create_dumps_for_all_bases_RAM()
-time.sleep(1)
-backupTestCases.PG().create_dumps_for_all_bases_with_archiver_RAM()
-
-backupTestCases.PG().create_pg_base()
-time.sleep(1)
-backupTestCases.PG().create_pg_base_with_archiver()
+    cleaner_test_cases.LC().clean()
+    time.sleep(0)
 
 
-# backupTestCases.PG.create_pg_base()
-# backupTestCases.PG.create_pg_base_with_archiver()
+run_cleaner_test_cases()

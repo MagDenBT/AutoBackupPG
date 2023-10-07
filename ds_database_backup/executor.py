@@ -22,7 +22,7 @@ class Executor(ABC):
 
 class ModuleFinder(Enum):
     from AutoBackupPG.ds_database_backup.backuper import PgBaseBackuper, PgDumpBackuper, OneCFbBackuper
-    from AutoBackupPG.ds_database_backup.local_cleaner import Cleaner, CleanerPgBaseBackups
+    from AutoBackupPG.ds_database_backup.local_cleaner import Cleaner
     from AutoBackupPG.ds_database_backup.cloud_sync import AWSClient
 
     PG_BASE_BACKUPER = PgBaseBackuper
@@ -30,7 +30,6 @@ class ModuleFinder(Enum):
     ONE_C_FB_BACKUPER = OneCFbBackuper
 
     CLEANER = Cleaner
-    CLEANER_PG_BASEBACKUPS = CleanerPgBaseBackups
 
     AWS_CLIENT = AWSClient
 
