@@ -2,8 +2,8 @@ import os
 from typing import List
 import boto3
 from boto3.s3.transfer import TransferConfig
-from AutoBackupPG.ds_database_backup.exceptions import AWSTimeTooSkewedError, AWSBucketError, \
-    RansomwareVirusTracesFound, AWSSpeedAutoAdjustmentError
+from AutoBackupPG.ds_database_backup.exceptions import RansomwareVirusTracesFound, AWSSpeedAutoAdjustmentError, \
+    AWSConnectionError
 from AutoBackupPG.ds_database_backup.configs import ConfigAWSClient
 from AutoBackupPG.ds_database_backup.executor import Executor
 from AutoBackupPG.ds_database_backup.utils import Utils
@@ -31,10 +31,7 @@ class AWSClient(Executor):
         self._sync()
 
     def _sync(self) -> None:
-        if self._local_time_is_too_skewed():
-            raise AWSTimeTooSkewedError()
-
-        self._check_bucket()
+        self._check_connection()
 
         all_cloud_backups = self._get_objects_on_aws(with_hash=self._config.with_hash)
         for cloud_backup in all_cloud_backups:
@@ -42,30 +39,21 @@ class AWSClient(Executor):
                 self._cloud_backups.append(cloud_backup)
 
         corrupt_files = self._get_corrupt_files()
-        if len(corrupt_files) == 0:
-            self._clean_cloud()
+        local_backups = Utils.get_objects_on_disk(self._config.full_path_to_backups)
+        if len(local_backups) > 0:
+            if len(corrupt_files) == 0:
+                self._clean_cloud()
 
-        self._upload_to_cloud()
+            self._upload_to_cloud()
 
         if len(corrupt_files) > 0:
             raise RansomwareVirusTracesFound(corrupt_files)
 
-    def _local_time_is_too_skewed(self):
-        from botocore.exceptions import ClientError
-        is_too_skewed = False
-
+    def _check_connection(self) -> None:
         try:
             self._aws_client.list_objects(Bucket=self._config.bucket)
-        except ClientError as e:
-            is_too_skewed = e.response.get('Error').get('Code') == 'RequestTimeTooSkewed'
-
-        return is_too_skewed
-
-    def _check_bucket(self) -> None:
-        try:
-            self._aws_client.head_bucket(Bucket=self._config.bucket)
         except Exception as e:
-            AWSBucketError(e)
+            raise AWSConnectionError(e)
 
     def _get_objects_on_aws(self, only_files=True, with_hash=True):
         result = []
@@ -161,24 +149,41 @@ class AWSClient(Executor):
             return self._compute_files_to_upload_no_hash(local_backups)
 
     def _compute_files_to_upload_no_hash(self, local_backups: [str]):
-        path_cloud = self._config.path_to_backups_cloud
-        root_local_path = self._config.full_path_to_backups
         result = {}
         for l_backup in local_backups:
-            _dir = os.path.dirname(l_backup)
-            dir_name = os.path.basename(_dir)
-            file_name_for_cloud = file_name = os.path.basename(l_backup)
-            if not root_local_path.endswith(_dir):
-                file_name_for_cloud = f'{self._config.aws_correct_folder_name(dir_name)}/{file_name}'
-            l_add = True
-            for cloud_backup in self._cloud_backups:
-                if cloud_backup.endswith(file_name):
-                    l_add = False
-                    break
-            if l_add:
-                full_path_cloud = f'{path_cloud}/{file_name_for_cloud}'
-                result.update({l_backup: full_path_cloud})
+            file_name = os.path.basename(l_backup)
+            md5_local = Utils.get_md5(l_backup, self._config.chunk_size)
+            if self._file_is_in_cloud(file_name):
+                if md5_local == cloud_backup['Hash']
+                continue
+
+            full_path_cloud = self._transform_to_cloud_path(l_backup)
+            result.update({l_backup: full_path_cloud})
+
         return result
+
+    def _transform_to_cloud_path(self, local_path):
+        # Преобразование пути в нормальный формат
+        normalized_path = os.path.normpath(local_path)
+        # Разделение пути на части
+        path_parts = normalized_path.split(os.sep)
+        # Находим индекс каталога идущего за custom_dir в пути
+        after_custom_dir_index = path_parts.index(self._config.custom_dir) + 1
+        # Обрезаем путь до custom_dir включительно и преобразуем его в нужный формат
+        path_parts = path_parts[after_custom_dir_index:]
+        # Преобразуем имена каталогов в корректные для S3
+        for part in path_parts:
+            part = self._config.aws_correct_folder_name(part)
+
+        cloud_path = '/'.join(path_parts)
+        cloud_path = f'{self._config.path_to_backups_cloud}/{cloud_path}'
+        return cloud_path
+
+    def _file_is_in_cloud(self, file_name, hash = None):
+        for cloud_backup in self._cloud_backups:
+            if cloud_backup.endswith(file_name):
+                return True
+        return False
 
     def _compute_files_to_upload_with_hash(self, local_backups: [str]):
         path_cloud = self._config.path_to_backups_cloud

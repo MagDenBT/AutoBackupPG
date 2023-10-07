@@ -63,7 +63,7 @@ class CleanerSet:
         'path_to_backups': CommonSet.path_to_backups,
         'custom_dir': CommonSet.custom_dir,
 
-        'backups_leave_amount': 0,
+        'backups_leave_amount': 3,
         'keep_one_backup_per_day': True,
         'storage_time': 7 * 24 * 60 * 60,
     }
@@ -204,8 +204,15 @@ class CleanerTestCases:
 
 
 class SyncTestCases:
-    def sync(self):
-        pass
+    class AWS:
+        _config = SyncSet.config.copy()
+
+        def sync(self):
+            config = self._config.copy()
+            DsBuilder \
+                .build(ModuleFinder.AWS_CLIENT) \
+                .initialize_config(config) \
+                .start()
 
 
 def run_backup_test_cases():
@@ -242,6 +249,13 @@ def run_cleaner_test_cases():
 
     cleaner_test_cases.LC().clean()
     time.sleep(0)
+    # Todo Проверить очистку WAL-файлов
+
+def run_cloud_sync_test_cases():
+    sync_test_cases = SyncTestCases()
+
+    sync_test_cases.AWS().sync()
+    time.sleep(0)
 
 
-run_cleaner_test_cases()
+run_cloud_sync_test_cases()
