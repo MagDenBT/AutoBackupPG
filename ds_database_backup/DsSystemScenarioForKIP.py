@@ -1,9 +1,8 @@
-from AutoBackupPG.src.lib.common.base_scenario import BaseScenario
-# Экспорт класса ошибок.
-from AutoBackupPG.src.lib import SACError
-from AutoBackupPG.src.lib import global_logger
+from lib.common.base_scenario import BaseScenario
+from lib import SACError
+from lib import global_logger
 
-from AutoBackupPG.ds_database_backup.executor import DsBuilder, ModuleFinder
+from executor import DsBuilder, ModuleFinder
 
 
 class DsSystemScenarioForKIP(BaseScenario):

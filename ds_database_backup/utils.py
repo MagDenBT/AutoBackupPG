@@ -122,7 +122,7 @@ class Utils:
         return result
 
     @staticmethod
-    def add_hashs_to_local_files(local_files: [], chunk_size):
+    def add_hashes_to_local_files(local_files: [], chunk_size) -> {str: str}:
         result = {}
         for file in local_files:
             result.update({file: Utils.get_md5(file, chunk_size)})

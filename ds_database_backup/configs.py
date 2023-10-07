@@ -539,7 +539,7 @@ class ConfigAWSClient(AbstractConfig):
 
     @property
     def path_to_backups_cloud(self) -> str:
-        return f'/{self.custom_dir}'
+        return f'{self.custom_dir}'
 
 
 class ConfigCleaner(AbstractConfig):
@@ -617,4 +617,3 @@ class ConfigCleaner(AbstractConfig):
     @property
     def handle_wal_files(self) -> bool:
         return self._path_to_wal_files != ''
-
