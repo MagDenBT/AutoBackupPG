@@ -1,7 +1,7 @@
 import configparser
 import time
 
-from AutoBackupPG.ds_database_backup.executor import DsBuilder, ModuleFinder
+from executor import DsBuilder, ModuleFinder
 
 
 class CommonSet:
@@ -256,6 +256,5 @@ def run_cloud_sync_test_cases():
 
     sync_test_cases.AWS().sync()
     time.sleep(0)
-
 
 run_cloud_sync_test_cases()

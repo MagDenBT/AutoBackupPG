@@ -1,7 +1,7 @@
 import lzma
-from AutoBackupPG.ds_database_backup.configs import *
-from AutoBackupPG.ds_database_backup.executor import Executor
-from AutoBackupPG.ds_database_backup.utils import Utils
+from configs import *
+from executor import Executor
+from utils import Utils
 
 
 class Cleaner(Executor):

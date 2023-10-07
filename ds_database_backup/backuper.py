@@ -1,11 +1,11 @@
 import os
 import shutil
 import subprocess
-from AutoBackupPG.ds_database_backup.exceptions import PgBaseBackupCreateError, \
+from exceptions import PgBaseBackupCreateError, \
     ArchiveCreateError, PgDumpRunError, PgDumpCreateError, OneCFBBackupCreateError
-from AutoBackupPG.ds_database_backup.configs import ConfigPgBaseBackuper, ConfigPgDumpBackuper, Config1CFBBackuper
-from AutoBackupPG.ds_database_backup.executor import Executor
-from AutoBackupPG.ds_database_backup.utils import Utils
+from configs import ConfigPgBaseBackuper, ConfigPgDumpBackuper, Config1CFBBackuper
+from executor import Executor
+from utils import Utils
 
 
 class PgBaseBackuper(Executor):

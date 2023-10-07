@@ -2,11 +2,11 @@ import os
 from typing import List
 import boto3
 from boto3.s3.transfer import TransferConfig
-from AutoBackupPG.ds_database_backup.exceptions import RansomwareVirusTracesFound, AWSSpeedAutoAdjustmentError, \
+from exceptions import RansomwareVirusTracesFound, AWSSpeedAutoAdjustmentError, \
     AWSConnectionError
-from AutoBackupPG.ds_database_backup.configs import ConfigAWSClient
-from AutoBackupPG.ds_database_backup.executor import Executor
-from AutoBackupPG.ds_database_backup.utils import Utils
+from configs import ConfigAWSClient
+from executor import Executor
+from utils import Utils
 
 
 class AWSClient(Executor):

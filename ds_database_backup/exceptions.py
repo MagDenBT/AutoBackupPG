@@ -1,7 +1,7 @@
 import subprocess
 from typing import List
 from botocore.exceptions import ClientError
-from AutoBackupPG.ds_database_backup.utils import Utils
+from utils import Utils
 
 
 class ModuleNotFound(Exception):
