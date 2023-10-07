@@ -97,6 +97,7 @@ class AbstractConfig(ABC):
         if not os.path.exists(root_drive):
             raise DriveNotExist(parameter_name=parameter_name, path=path)
 
+    @property
     def label(self) -> str:
         if self._label == '':
             self._label = self._generate_label()
@@ -151,7 +152,7 @@ class ConfigPgBaseBackuper(AbstractConfig):
     @property
     def pg_basebackup(self) -> str:
         if self._pg_basebackup == '':
-            self._pg_basebackup = self.postgresql_instance_path + 'bin\\pg_basebackup.exe'
+            self._pg_basebackup = self.postgresql_instance_path + '\\bin\\pg_basebackup.exe'
         return self._pg_basebackup
 
     def set_pg_basebackup(self, value: str):
@@ -333,11 +334,11 @@ class ConfigPgDumpBackuper(AbstractConfig):
 
     @property
     def pg_dump(self):
-        return self.postgresql_instance_path + 'bin\\pg_dump.exe'
+        return self.postgresql_instance_path + '\\bin\\pg_dump.exe'
 
     @property
     def pg_dumpall(self):
-        return self.postgresql_instance_path + 'bin\\pg_dumpall.exe'
+        return self.postgresql_instance_path + '\\bin\\pg_dumpall.exe'
 
     @property
     def use_external_archiver(self) -> bool:

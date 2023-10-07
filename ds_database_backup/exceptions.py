@@ -1,6 +1,10 @@
 import subprocess
 from typing import List
 
+from chardet import UniversalDetector
+
+from AutoBackupPG.ds_database_backup.utils import Utils
+
 
 class ModuleNotFound(Exception):
     MSG_TEMPLATE = (
@@ -93,34 +97,36 @@ class PgBaseBackupCreateError(Exception):
 
 class ArchiveCreateError(Exception):
     MSG_TEMPLATE = (
-        'Ошибка при архивировании бэкапа - {error_text}'
+        'Ошибка при архивировании бэкапа - {error_text}\nКоманда - {command}'
     )
 
     def __init__(self, exception):
         if isinstance(exception, subprocess.CalledProcessError):
-            error_text = exception.stderr.decode(errors='replace')
+            error_text = Utils.decode_text_or_return_error_msg(exception.stderr)
         else:
             error_text = str(exception)
 
         msg = self.MSG_TEMPLATE.format(
             error_text=error_text,
+            command=exception.cmd
         )
         super().__init__(msg)
 
 
 class PgDumpRunError(Exception):
     MSG_TEMPLATE = (
-        'Ошибка запуска pg_dump - {error_text}'
+        'Ошибка запуска pg_dump - {error_text}\nКоманда - {command}'
     )
 
     def __init__(self, exception):
         if isinstance(exception, subprocess.CalledProcessError):
-            error_text = exception.output.decode(errors='replace')
+            error_text = Utils.decode_text_or_return_error_msg(exception.output)
         else:
             error_text = str(exception)
 
         msg = self.MSG_TEMPLATE.format(
             error_text=error_text,
+            command=exception.cmd
         )
         super().__init__(msg)
 

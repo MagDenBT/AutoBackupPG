@@ -1,4 +1,5 @@
 import configparser
+import time
 
 from AutoBackupPG.ds_database_backup.executor import DsBuilder, ModuleFinder
 
@@ -26,14 +27,15 @@ class BackupersSet:
     }
 
     pg = {
-        'postgresql_instance_path': r'C:\Program Files\PostgreSQL\13',
+        'postgresql_instance_path': r'C:\Program Files\PostgreSQL\15',
         'postgresql_username': 'postgres',
         'postgresql_password': '1122',
     }
 
     pg_base = {
-        'pg_basebackup': r'C:\backup\test_suite\pg_basebackup_14.6\pg_basebackup.exe',
+        # 'pg_basebackup': r'C:\backup\test_suite\pg_basebackup_14.6\pg_basebackup.exe',
     }
+
 
     pg_dump = {
         'database_name': r'test_ds',
@@ -82,7 +84,7 @@ class BackupTestCases:
         _config = BackupersSet.base.copy()
         _config.update(BackupersSet.pg)
 
-        def create_dump_by_base_name(self):
+        def create_dump_by_base_name_rom(self):
             config = self._config.copy()
             config.update(BackupersSet.pg_dump)
 
@@ -91,11 +93,64 @@ class BackupTestCases:
                 .initialize_config(config) \
                 .start()
 
-        def create_dump_by_base_name_with_archiver(self):
+        def create_dump_by_base_name_with_archiver_rom(self):
             config = self._config.copy()
             config.update(BackupersSet.pg_dump)
             config.update(BackupersSet.archiver)
 
+            DsBuilder \
+                .build(ModuleFinder.PG_DUMP_BACKUPER) \
+                .initialize_config(config) \
+                .start()
+
+        def create_dumps_for_all_bases_rom(self):
+            config = self._config.copy()
+
+            DsBuilder \
+                .build(ModuleFinder.PG_DUMP_BACKUPER) \
+                .initialize_config(config) \
+                .start()
+
+        def create_dumps_for_all_bases_with_archiver_rom(self):
+            config = self._config.copy()
+            config.update(BackupersSet.archiver)
+
+            DsBuilder \
+                .build(ModuleFinder.PG_DUMP_BACKUPER) \
+                .initialize_config(config) \
+                .start()
+
+        def create_dump_by_base_name_RAM(self):
+            config = self._config.copy()
+            config.update(BackupersSet.pg_dump)
+            config.update({'use_temp_dump': True})
+            DsBuilder \
+                .build(ModuleFinder.PG_DUMP_BACKUPER) \
+                .initialize_config(config) \
+                .start()
+
+        def create_dump_by_base_name_with_archiver_RAM(self):
+            config = self._config.copy()
+            config.update(BackupersSet.pg_dump)
+            config.update(BackupersSet.archiver)
+            config.update({'use_temp_dump': True})
+            DsBuilder \
+                .build(ModuleFinder.PG_DUMP_BACKUPER) \
+                .initialize_config(config) \
+                .start()
+
+        def create_dumps_for_all_bases_RAM(self):
+            config = self._config.copy()
+            config.update({'use_temp_dump': True})
+            DsBuilder \
+                .build(ModuleFinder.PG_DUMP_BACKUPER) \
+                .initialize_config(config) \
+                .start()
+
+        def create_dumps_for_all_bases_with_archiver_RAM(self):
+            config = self._config.copy()
+            config.update(BackupersSet.archiver)
+            config.update({'use_temp_dump': True})
             DsBuilder \
                 .build(ModuleFinder.PG_DUMP_BACKUPER) \
                 .initialize_config(config) \
@@ -151,8 +206,28 @@ class SyncTestCases:
 
 backupTestCases = BackupTestCases()
 
-backupTestCases.PG().create_dump_by_base_name()
-backupTestCases.PG().create_dump_by_base_name_with_archiver()
+
+backupTestCases.PG().create_dump_by_base_name_rom()
+time.sleep(1)
+backupTestCases.PG().create_dump_by_base_name_with_archiver_rom()
+time.sleep(1)
+backupTestCases.PG().create_dumps_for_all_bases_rom()
+time.sleep(1)
+backupTestCases.PG().create_dumps_for_all_bases_with_archiver_rom()
+time.sleep(1)
+
+backupTestCases.PG().create_dump_by_base_name_RAM()
+time.sleep(1)
+backupTestCases.PG().create_dump_by_base_name_with_archiver_RAM()
+time.sleep(1)
+backupTestCases.PG().create_dumps_for_all_bases_RAM()
+time.sleep(1)
+backupTestCases.PG().create_dumps_for_all_bases_with_archiver_RAM()
+
+backupTestCases.PG().create_pg_base()
+time.sleep(1)
+backupTestCases.PG().create_pg_base_with_archiver()
+
 
 # backupTestCases.PG.create_pg_base()
 # backupTestCases.PG.create_pg_base_with_archiver()

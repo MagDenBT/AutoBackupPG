@@ -4,6 +4,7 @@ import os
 from typing import List
 
 import tzlocal
+from chardet import UniversalDetector
 
 
 class DefaultTimezone(datetime.tzinfo):
@@ -160,3 +161,16 @@ class Utils:
         if delete_it:
             os.rmdir(path)
         return delete_it
+
+    @staticmethod
+    def decode_text_or_return_error_msg(encode_bytes: bytes) -> str:
+        if len(encode_bytes) == 0:
+            return ''
+
+        detector = UniversalDetector()
+        detector.feed(encode_bytes)
+        detector.close()
+        try:
+            return encode_bytes.decode(detector.result.get('encoding'))
+        except Exception as e:
+            return f'Не удалось определить кодировку текста ошибки - {str(e)}'

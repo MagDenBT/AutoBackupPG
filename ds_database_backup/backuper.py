@@ -47,7 +47,7 @@ class PgBaseBackuper(Executor):
             env=my_env,
         )
 
-        text_error = process.stderr.decode(errors='replace')
+        text_error = Utils.decode_text_or_return_error_msg(process.stderr)
         if text_error:
             raise PgBaseBackupCreateError(text_error)
 
@@ -167,7 +167,7 @@ class PgDumpBackuper(Executor):
 
     @staticmethod
     def _throw_error_if_create_process_failed(subprocess_output):
-        result = subprocess_output.decode(errors='replace')
+        result = Utils.decode_text_or_return_error_msg(subprocess_output)
         pg_error = ''
         if len(result.splitlines()) > 0:
             pg_error = result.splitlines()[0]
@@ -193,7 +193,7 @@ class PgDumpBackuper(Executor):
             env=my_env,
         )
 
-        text_error = process.stderr.decode(errors='replace')
+        text_error = Utils.decode_text_or_return_error_msg(process.stderr)
         if text_error:
             raise PgDumpCreateError(text_error)
 
@@ -254,6 +254,6 @@ class OneCFbBackuper(Executor):
             stderr=subprocess.PIPE
         )
 
-        text_error = process.stderr.decode(errors='replace')
+        text_error = Utils.decode_text_or_return_error_msg(process.stderr)
         if text_error:
             raise OneCFBBackupCreateError(text_error)
