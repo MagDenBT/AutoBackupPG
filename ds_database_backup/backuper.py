@@ -246,7 +246,7 @@ class OneCFbBackuper(Executor):
 
     def _create_backup(self) -> None:
         target_file = f'{self._config.full_path_to_backups}\\{self._config.label}_{self._config.cd_file_name}.xz'
-        comm_args = [f'{self._config.path_to_7zip}', 'a', target_file, '-ssw', self._config.path_to_1c_db]
+        comm_args = [f'{self._config.path_to_7zip}', 'a', target_file, '-ssw', self._config.path_to_1c_db_dir]
 
         process = subprocess.run(
             comm_args,

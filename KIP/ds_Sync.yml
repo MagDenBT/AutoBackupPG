@@ -1,0 +1,12 @@
+﻿version: 2.1.3.1
+external-values:
+  - path_to_backups
+  - custom_dir
+  - access_key_id
+  - secret_access_key
+  - bucket
+default-values:
+  time-limit: 36000
+  module_name: "AWS_CLIENT"
+  with_hash: False
+  endpoint_url: "https://storage.yandexcloud.net"

@@ -354,7 +354,7 @@ class Config1CFBBackuper(AbstractConfig):
     _path_to_backups: str = ''
     _custom_dir: str = ''
 
-    _path_to_1c_db: str = ''
+    _path_to_1c_db_dir: str = ''
     _path_to_7zip: str = ''
     _cd_file_name: str = '1Cv8.1CD'
 
@@ -362,7 +362,7 @@ class Config1CFBBackuper(AbstractConfig):
         return [
             'path_to_backups',
             'custom_dir',
-            'path_to_1c_db',
+            'path_to_1c_db_dir',
             'path_to_7zip',
         ]
 
@@ -388,12 +388,12 @@ class Config1CFBBackuper(AbstractConfig):
         self._custom_dir = value
 
     @property
-    def path_to_1c_db(self) -> str:
-        return self._path_to_1c_db
+    def path_to_1c_db_dir(self) -> str:
+        return self._path_to_1c_db_dir
 
-    def set_path_to_1c_db(self, value: str):
+    def set_path_to_1c_db_dir(self, value: str):
         super()._check_disk_for_parameter(value, 'path_to_1c_db')
-        self._path_to_1c_db = value + '\\' + self.cd_file_name
+        self._path_to_1c_db_dir = value + '\\' + self.cd_file_name
 
     @property
     def path_to_7zip(self) -> str:

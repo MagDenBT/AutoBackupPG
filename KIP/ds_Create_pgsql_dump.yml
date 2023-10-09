@@ -2,16 +2,14 @@
 external-values:
   - path_to_backups
   - custom_dir
-  - database_name
-  - postgresql_isntance_path
+  - postgresql_instance_path
   - postgresql_username
   - postgresql_password
 default-values:
   time-limit: 36000
-  handle_full_bcks: True
+  module_name: "PG_DUMP_BACKUPER"
+  database_name: ''
   path_to_7zip: "./7zip"
-  write_to_log_file: False
-  pg_basebackup: ""
   pg_port: ""
   use_temp_dump: True
 

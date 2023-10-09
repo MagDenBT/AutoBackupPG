@@ -1,0 +1,13 @@
+﻿version: 2.1.3.1
+external-values:
+  - path_to_backups
+  - custom_dir
+default-values:
+  time-limit: 36000
+  module_name: "CLEANER"
+  storage_time: 604800
+  path_to_wal_files: ""
+  backups_leave_amount: 3
+  keep_one_backup_per_day: True
+
+
