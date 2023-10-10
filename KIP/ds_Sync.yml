@@ -5,6 +5,7 @@ external-values:
   - access_key_id
   - secret_access_key
   - bucket
+  - ds_scripts_version
 default-values:
   time-limit: 36000
   module_name: "AWS_CLIENT"

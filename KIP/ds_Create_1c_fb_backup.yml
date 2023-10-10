@@ -3,6 +3,7 @@ external-values:
   - path_to_backups
   - custom_dir
   - path_to_1c_db_dir
+  - ds_scripts_version
 default-values:
   time-limit: 36000
   module_name: "ONE_C_FB_BACKUPER"
