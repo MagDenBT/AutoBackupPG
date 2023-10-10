@@ -31,6 +31,7 @@ class DsSystemScenarioForKIP(BaseScenario):
 
     def _real(self):
         module_name = self.config["module_name"]
+        self._prepare_scenario_config()
         try:
             global_logger.info(message=f'Старт {module_name}')
 
@@ -44,3 +45,8 @@ class DsSystemScenarioForKIP(BaseScenario):
             error = str(e)
             # global_logger.error(message=error)
             raise SACError(code="RUNTIME_ERROR", args=f'{module_name}: {error}')
+
+    def _prepare_scenario_config(self):
+        if self.config.scenario_context.get('handle_full_bcks'):
+            self.config.scenario_context.update({'exclude_dirs': ['Full']})
+

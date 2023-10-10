@@ -431,16 +431,20 @@ class ConfigAWSClient(AbstractConfig):
     _bandwidth_limit: int = 9 * 1000 * 1000 / 8  # Speed - 9Mbit/s
     _max_bandwidth_bytes: int = None
     _threshold_bandwidth: int = 500 * 1000 / 8
-    _exclude_dirs = [
-        'Full',
-    ]
+    _exclude_dirs: [str] = []
 
     def __init__(self, params: {str: Any}):
         super().__init__(params)
         self._paths_to_backups_for_sync: [str] = []
-        for backup_type_dir in super().backup_type_dirs.values():
-            if backup_type_dir not in self._exclude_dirs:
-                self._paths_to_backups_for_sync.append(f'{self._path_to_backups}\\{self._custom_dir}\\{backup_type_dir}')
+        self._prepare_paths_to_backups_for_sync()
+
+    def _prepare_paths_to_backups_for_sync(self):
+        contents = os.listdir(self.general_path_to_backups)
+        directories = [d for d in contents if os.path.isdir(os.path.join(self.general_path_to_backups, d))]
+        for sub_dir in directories:
+            to_exclude = any(d.lower() == sub_dir.lower() for d in self._exclude_dirs)
+            if not to_exclude:
+                self._paths_to_backups_for_sync.append(f'{self.general_path_to_backups}\\{sub_dir}')
 
     @staticmethod
     def aws_correct_folder_name(dir_name: str) -> str:

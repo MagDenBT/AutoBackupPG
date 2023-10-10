@@ -8,5 +8,6 @@ external-values:
 default-values:
   time-limit: 36000
   module_name: "AWS_CLIENT"
+  handle_full_bcks: False
   with_hash: False
   endpoint_url: "https://storage.yandexcloud.net"
