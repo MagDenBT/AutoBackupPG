@@ -22,6 +22,7 @@ class AWSClient(Executor):
             aws_secret_access_key=config.secret_access_key
         )
         self._cloud_backups: [{str: str}] = []
+        self._local_backups: [str] = []
 
     @staticmethod
     def config_class():
@@ -33,14 +34,16 @@ class AWSClient(Executor):
     def _sync(self) -> None:
         self._check_connection()
 
-        all_cloud_backups = self._get_objects_on_aws(with_hash=self._config.with_hash)
-        for cloud_backup in all_cloud_backups:
-            if cloud_backup['path'].startswith(self._config.path_to_backups_cloud):
-                self._cloud_backups.append(cloud_backup)
+        for path in self._config.paths_to_backups_for_sync:
+            self._local_backups.extend(Utils.get_objects_on_disk(path, only_files=True))
 
         corrupt_files = self._get_corrupt_files()
-        local_backups = Utils.get_objects_on_disk(self._config.full_path_to_backups)
-        if len(local_backups) > 0:
+        if len(self._local_backups) > 0:
+            all_cloud_backups = self._get_objects_on_aws(with_hash=self._config.with_hash)
+            for cloud_backup in all_cloud_backups:
+                if cloud_backup['path'].startswith(self._config.path_to_backups_cloud):
+                    self._cloud_backups.append(cloud_backup)
+
             if len(corrupt_files) == 0:
                 self._clean_cloud()
 
@@ -74,9 +77,8 @@ class AWSClient(Executor):
         return result
 
     def _get_corrupt_files(self) -> List[str]:
-        loca_files = Utils.get_objects_on_disk(self._config.full_path_to_backups, only_files=True)
         corrupt_files = []
-        for file in loca_files:
+        for file in self._local_backups:
             if self._is_corrupt_extension(file):
                 corrupt_files.append(file)
         return corrupt_files
@@ -99,10 +101,7 @@ class AWSClient(Executor):
         return ['.gz', '.xz', '.txz', '.backup', '.dump']
 
     def _upload_to_cloud(self):
-
-        local_backups = Utils.get_objects_on_disk(self._config.full_path_to_backups)
-        to_upload = self._compute_files_to_upload(local_backups)
-
+        to_upload = self._compute_files_to_upload()
         if len(to_upload) == 0:
             return
 
@@ -139,9 +138,9 @@ class AWSClient(Executor):
                 else:
                     raise AWSSpeedAutoAdjustmentError(self._config.max_bandwidth_bytes / 125)
 
-    def _compute_files_to_upload(self, local_backups: [str]) -> {str: str}:
+    def _compute_files_to_upload(self) -> {str: str}:
         result = {}
-        for backup in local_backups:
+        for backup in self._local_backups:
             file_name = os.path.basename(backup)
             file_hash = Utils.get_md5(backup, self._config.chunk_size) if self._config.with_hash else ''
 
@@ -190,8 +189,7 @@ class AWSClient(Executor):
 
     def _get_extra_bck_on_cloud(self) -> [str]:
         result = []
-        loca_files = Utils.get_objects_on_disk(self._config.full_path_to_backups, only_files=True)
-        loca_files_and_hashes = Utils.add_hashes_to_local_files(loca_files, self._config.chunk_size)
+        loca_files_and_hashes = Utils.add_hashes_to_local_files(self._local_backups, self._config.chunk_size)
 
         for cloud_file in self._cloud_backups:
             cloud_file_name = os.path.basename(cloud_file['path'])

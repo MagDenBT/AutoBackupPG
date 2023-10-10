@@ -431,6 +431,16 @@ class ConfigAWSClient(AbstractConfig):
     _bandwidth_limit: int = 9 * 1000 * 1000 / 8  # Speed - 9Mbit/s
     _max_bandwidth_bytes: int = None
     _threshold_bandwidth: int = 500 * 1000 / 8
+    _exclude_dirs = [
+        'Full',
+    ]
+
+    def __init__(self, params: {str: Any}):
+        super().__init__(params)
+        self._paths_to_backups_for_sync: [str] = []
+        for backup_type_dir in super().backup_type_dirs.values():
+            if backup_type_dir not in self._exclude_dirs:
+                self._paths_to_backups_for_sync.append(f'{self._path_to_backups}\\{self._custom_dir}\\{backup_type_dir}')
 
     @staticmethod
     def aws_correct_folder_name(dir_name: str) -> str:
@@ -451,7 +461,7 @@ class ConfigAWSClient(AbstractConfig):
     def _paths_properties_for_check(self) -> List[str]:
         return [
             'path_to_backups',
-            'full_path_to_backups'
+            'general_path_to_backups'
         ]
 
     @property
@@ -532,9 +542,16 @@ class ConfigAWSClient(AbstractConfig):
     def set_threshold_bandwidth(self, value: int):
         self._threshold_bandwidth = value
 
+    def set_exclude_dirs(self, value: [str]):
+        self._exclude_dirs = value
+
+    @property
+    def paths_to_backups_for_sync(self) -> [str]:
+        return self._paths_to_backups_for_sync
+
     # Properties without class fields
     @property
-    def full_path_to_backups(self) -> str:
+    def general_path_to_backups(self) -> str:
         return f'{self._path_to_backups}\\{self._custom_dir}'
 
     @property
