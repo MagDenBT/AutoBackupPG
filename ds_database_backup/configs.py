@@ -428,15 +428,16 @@ class ConfigAWSClient(AbstractConfig):
     _chunk_size: int = 8388608
     _with_hash: bool = False
 
-    _bandwidth_limit: int = 9 * 1000 * 1000 / 8  # Speed - 9Mbit/s
+    _default_bandwidth_limit_bytes_for_auto_adjust: int = 9 * 125000  # Speed - 9Mbit/s
     _max_bandwidth_bytes: int = None
-    _threshold_bandwidth: int = 500 * 1000 / 8
+    _threshold_bandwidth_bytes: int = 500 * 125  # 500 Kbit/s
     _exclude_dirs: [str] = []
 
     def __init__(self, params: {str: Any}):
         super().__init__(params)
         self._paths_to_backups_for_sync: [str] = []
         self._prepare_paths_to_backups_for_sync()
+        self._prepare_bandwidth()
 
     def _prepare_paths_to_backups_for_sync(self):
         contents = os.listdir(self.general_path_to_backups)
@@ -445,6 +446,10 @@ class ConfigAWSClient(AbstractConfig):
             to_exclude = any(d.lower() == sub_dir.lower() for d in self._exclude_dirs)
             if not to_exclude:
                 self._paths_to_backups_for_sync.append(f'{self.general_path_to_backups}\\{sub_dir}')
+
+    def _prepare_bandwidth(self):
+        if self.max_bandwidth_bytes is not None:
+            self.set_default_bandwidth_limit_bytes_for_auto_adjust(self.max_bandwidth_bytes)
 
     @staticmethod
     def aws_correct_folder_name(dir_name: str) -> str:
@@ -526,25 +531,25 @@ class ConfigAWSClient(AbstractConfig):
         self._with_hash = value
 
     @property
-    def bandwidth_limit(self) -> int:
-        return self._bandwidth_limit
+    def default_bandwidth_limit_bytes_for_auto_adjust(self) -> int:
+        return self._default_bandwidth_limit_bytes_for_auto_adjust
 
-    def set_bandwidth_limit(self, value: int):
-        self._bandwidth_limit = value
+    def set_default_bandwidth_limit_bytes_for_auto_adjust(self, value: int):
+        self._default_bandwidth_limit_bytes_for_auto_adjust = round(value)
 
     @property
     def max_bandwidth_bytes(self) -> int:
         return self._max_bandwidth_bytes
 
     def set_max_bandwidth_bytes(self, value: int):
-        self._max_bandwidth_bytes = value
+        self._max_bandwidth_bytes = round(value)
 
     @property
-    def threshold_bandwidth(self) -> int:
-        return self._threshold_bandwidth
+    def threshold_bandwidth_bytes(self) -> int:
+        return self._threshold_bandwidth_bytes
 
-    def set_threshold_bandwidth(self, value: int):
-        self._threshold_bandwidth = value
+    def set_threshold_bandwidth_bytes(self, value: int):
+        self._threshold_bandwidth_bytes = round(value)
 
     def set_exclude_dirs(self, value: [str]):
         self._exclude_dirs = value

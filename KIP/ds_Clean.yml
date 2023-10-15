@@ -10,5 +10,7 @@ default-values:
   path_to_wal_files: ""
   backups_leave_amount: 3
   keep_one_backup_per_day: True
+  customer_work_start: 9
+  customer_work_end: 20
 
 

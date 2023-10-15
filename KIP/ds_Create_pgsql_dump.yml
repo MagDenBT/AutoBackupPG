@@ -13,4 +13,6 @@ default-values:
   path_to_7zip: "./7zip"
   pg_port: ""
   use_temp_dump: True
+  customer_work_start: 9
+  customer_work_end: 20
 

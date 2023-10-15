@@ -12,3 +12,6 @@ default-values:
   handle_full_bcks: False
   with_hash: False
   endpoint_url: "https://storage.yandexcloud.net"
+  customer_work_start: 9
+  customer_work_end: 20
+  max_bandwidth_percent : 40

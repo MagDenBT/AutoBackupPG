@@ -355,7 +355,8 @@ class AWSSpeedAutoAdjustmentError(Exception):
         ' {speed_kbit_s} Кбит/с не решило проблему'
     )
 
-    def __init__(self, speed_kbit_s):
+    def __init__(self, speed_bytes_per_s):
+        speed_kbit_s = round(speed_bytes_per_s / 125)
         msg = self.MSG_TEMPLATE.format(
             speed_kbit_s=speed_kbit_s,
         )

@@ -127,16 +127,16 @@ class AWSClient(Executor):
                 ConnectTimeoutError,
         ):
             if self._config.max_bandwidth_bytes is None:
-                new_max_bandwidth_bytes = self._config.bandwidth_limit
+                new_max_bandwidth_bytes = self._config.default_bandwidth_limit_bytes_for_auto_adjust
             else:
-                new_max_bandwidth_bytes = self._config.max_bandwidth_bytes / 100 * 70
+                new_max_bandwidth_bytes = self._config.max_bandwidth_bytes * 0.9
 
             if adjust_bandwidth:
-                if self._config.threshold_bandwidth < new_max_bandwidth_bytes:
+                if self._config.threshold_bandwidth_bytes < new_max_bandwidth_bytes:
                     self._config.set_max_bandwidth_bytes(new_max_bandwidth_bytes)
                     self._upload_file(local_file, target_file, True)
                 else:
-                    raise AWSSpeedAutoAdjustmentError(self._config.max_bandwidth_bytes / 125)
+                    raise AWSSpeedAutoAdjustmentError(self._config.max_bandwidth_bytes)
 
     def _compute_files_to_upload(self) -> {str: str}:
         result = {}

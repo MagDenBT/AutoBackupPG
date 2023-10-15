@@ -1,5 +1,8 @@
 import configparser
+import os
 import time
+
+import psutil
 
 from executor import DsBuilder, ModuleFinder
 
@@ -42,7 +45,7 @@ class BackupersSet:
     }
 
     one_c = {
-        'path_to_1c_db': r'C:\backup\test_suite\one_c_base',
+        'path_to_1c_db_dir': r'C:\backup\test_suite\one_c_base',
         'path_to_7zip': CommonSet.path_to_7zip,
     }
 
@@ -257,4 +260,4 @@ def run_cloud_sync_test_cases():
     sync_test_cases.AWS().sync()
     time.sleep(0)
 
-run_cloud_sync_test_cases()
+run_backup_test_cases()
