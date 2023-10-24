@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict
-from exceptions import ConfigTypeMismatch, ModuleNotFound
+from .exceptions import ConfigTypeMismatch, ModuleNotFound
 
 DS_VERSION = '2.0.1'
 
@@ -23,9 +23,9 @@ class Executor(ABC):
 
 
 class ModuleFinder(Enum):
-    from backuper import PgBaseBackuper, PgDumpBackuper, OneCFbBackuper
-    from local_cleaner import Cleaner
-    from cloud_sync import AWSClient
+    from .backuper import PgBaseBackuper, PgDumpBackuper, OneCFbBackuper
+    from .local_cleaner import Cleaner
+    from .cloud_sync import AWSClient
 
     PG_BASE_BACKUPER = PgBaseBackuper
     PG_DUMP_BACKUPER = PgDumpBackuper

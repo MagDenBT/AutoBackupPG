@@ -1,11 +1,11 @@
 import os
 import shutil
 import subprocess
-from exceptions import PgBaseBackupCreateError, \
+from .exceptions import PgBaseBackupCreateError, \
     ArchiveCreateError, PgDumpRunError, PgDumpCreateError, OneCFBBackupCreateError
-from configs import ConfigPgBaseBackuper, ConfigPgDumpBackuper, Config1CFBBackuper
-from executor import Executor
-from utils import Utils
+from .configs import ConfigPgBaseBackuper, ConfigPgDumpBackuper, Config1CFBBackuper
+from .executor import Executor
+from .utils import Utils
 
 
 class PgBaseBackuper(Executor):

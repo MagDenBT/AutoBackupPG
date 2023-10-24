@@ -4,7 +4,7 @@ import random
 from abc import ABC, abstractmethod
 from typing import Any, List
 
-from exceptions import DriveNotExist, MandatoryPropertiesNotPresent, PathNotExist, \
+from .exceptions import DriveNotExist, MandatoryPropertiesNotPresent, PathNotExist, \
     DrivesNotExist
 
 

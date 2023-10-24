@@ -1,7 +1,7 @@
 import lzma
-from configs import *
-from executor import Executor
-from utils import Utils
+from .configs import *
+from .executor import Executor
+from .utils import Utils
 
 
 class Cleaner(Executor):

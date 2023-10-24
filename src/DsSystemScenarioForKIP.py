@@ -1,12 +1,12 @@
-from executor import DsBuilder, ModuleFinder, DS_VERSION
+from ds_database_backup.executor import DsBuilder, ModuleFinder, DS_VERSION
 import os
 import psutil
 from datetime import datetime
 import speedtest
 
 from lib.common.base_scenario import BaseScenario
-from lib import SACError
-from lib import global_logger
+from lib.common.errors import SACError
+from lib.common.logger import global_logger
 
 
 class DsSystemScenarioForKIP(BaseScenario):
@@ -21,7 +21,7 @@ class DsSystemScenarioForKIP(BaseScenario):
         version_must_be = self.config["ds_scripts_version"]
 
         if DS_VERSION != version_must_be:
-            raise SACError(code='ARGS_ERROR', args=f'Версия ds-скриптов на машине - {DS_VERSION},'
+            raise SACError('ARGS_ERROR', f'Версия ds-скриптов на машине - {DS_VERSION},'
                                                    f' а должна быть - {version_must_be}')
 
     def __check_config(self):
@@ -31,7 +31,7 @@ class DsSystemScenarioForKIP(BaseScenario):
                 .build(ModuleFinder.find_by_name(module_name)) \
                 .initialize_config(self.config.scenario_context)
         except Exception as e:
-            raise SACError(code='ARGS_ERROR', args=str(e))
+            raise SACError('ARGS_ERROR', e.args)
 
     def _real(self):
         self.ds_module_name = self.config["module_name"]
@@ -46,7 +46,7 @@ class DsSystemScenarioForKIP(BaseScenario):
 
             global_logger.info(message=f'Завершено {self.ds_module_name}')
         except Exception as error:
-            raise SACError(code="RUNTIME_ERROR", args=f'{self.ds_module_name}: {str(error)}')
+            raise SACError("RUNTIME_ERROR", f'{self.ds_module_name}: {error.args}')
 
     def _prepare_scenario_config(self):
         kip_context = self.config.scenario_context
@@ -105,3 +105,6 @@ class DsSystemScenarioForKIP(BaseScenario):
         limited_upload_speed_mbit = round(limited_upload_speed_bits / 1000000)
         global_logger.info(message=f'Максимальная скорость выгрузки {current_upload_speed_mbit} Мбит/с'
                                    f' ограничена до {limited_upload_speed_mbit} Мбит/с')
+
+if __name__ == "__main__":
+    DsSystemScenarioForKIP.main()

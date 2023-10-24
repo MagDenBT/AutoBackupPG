@@ -4,7 +4,8 @@ import time
 
 import psutil
 
-from executor import DsBuilder, ModuleFinder
+
+from src.ds_database_backup.executor import DsBuilder, ModuleFinder
 
 
 class CommonSet:
@@ -13,7 +14,7 @@ class CommonSet:
 
     path_to_backups = r'C:\backup'
     custom_dir = r'Sales depart'
-    path_to_7zip = r'C:\backup\test_suite\7zip\x64'
+    path_to_7zip = r'./7zip'
     access_key_id = _cfg.get('Ob', 'key_id')
     secret_access_key = _cfg.get('Ob', 'key')
     bucket = _cfg.get('Ob', 'bucket')
@@ -259,5 +260,6 @@ def run_cloud_sync_test_cases():
 
     sync_test_cases.AWS().sync()
     time.sleep(0)
+
 
 run_backup_test_cases()
