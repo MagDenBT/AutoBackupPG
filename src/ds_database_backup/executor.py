@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Dict
 from .exceptions import ConfigTypeMismatch, ModuleNotFound
 
-DS_VERSION = '2.0.1'
+DS_VERSION = '2.0.2'
 
 
 class Executor(ABC):

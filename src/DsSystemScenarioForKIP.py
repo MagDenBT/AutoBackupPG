@@ -34,6 +34,7 @@ class DsSystemScenarioForKIP(BaseScenario):
             raise SACError('ARGS_ERROR', e.args)
 
     def _real(self):
+        self.__check_ds_scripts_version()
         self.ds_module_name = self.config["module_name"]
         try:
             global_logger.info(message=f'Старт {self.ds_module_name}')

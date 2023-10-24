@@ -64,7 +64,8 @@ class AbstractConfig(ABC):
             try:
                 prop_val = self[prop.lower()]
                 if prop_val is not None and prop_val != '':
-                    root_drive, _ = os.path.splitdrive(prop_val)
+                    abc_path = os.path.abspath(prop_val)
+                    root_drive, _ = os.path.splitdrive(abc_path)
                     if not os.path.exists(root_drive):
                         failed_properties.update({prop: prop_val})
             except AttributeError:
@@ -78,8 +79,12 @@ class AbstractConfig(ABC):
         for prop in paths_properties:
             try:
                 prop_val = self[prop.lower()]
-                if prop_val is not None and prop_val != '' and not os.path.exists(prop_val):
-                    failed_properties.update({prop: prop_val})
+                if prop_val is not None and prop_val != '' and not os.path.exists(os.path.abspath(prop_val)):
+                    abc_path = os.path.abspath(prop_val)
+                    failed_path = prop_val
+                    if abc_path != prop_val:
+                        failed_path = f'{prop_val}, полный путь - {abc_path}'
+                    failed_properties.update({prop: failed_path})
             except AttributeError:
                 failed_properties.update({prop: ''})
 
@@ -368,7 +373,7 @@ class Config1CFBBackuper(AbstractConfig):
 
     def _paths_properties_for_check(self) -> List[str]:
         return [
-            'path_to_1c_db',
+            'path_to_1c_db_dir',
             'path_to_7zip'
         ]
 
@@ -392,7 +397,7 @@ class Config1CFBBackuper(AbstractConfig):
         return self._path_to_1c_db_dir
 
     def set_path_to_1c_db_dir(self, value: str):
-        super()._check_disk_for_parameter(value, 'path_to_1c_db')
+        super()._check_disk_for_parameter(value, 'path_to_1c_db_dir')
         self._path_to_1c_db_dir = value + '\\' + self.cd_file_name
 
     @property
