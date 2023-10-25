@@ -68,7 +68,7 @@ class PathNotExist(Exception):
 
 class ItsNotFile(Exception):
     MSG_TEMPLATE = (
-        'Ошибка инициализации настроек. В этом параметре должен быть путь к файлу: {parameter_and_path}'
+        'Ошибка инициализации настроек. В параметре должен быть путь к файлу, а найдена папка: {parameter_and_path}'
     )
 
     def __init__(self, parameter_and_path: {str: str}):

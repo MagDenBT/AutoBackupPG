@@ -51,8 +51,7 @@ class BackupersSet:
     }
 
     ms_sql = {
-        'database_name': r'mpr',
-        'ms_sql_password': '1122',
+        'database_name': r'kip',
     }
 
 
@@ -274,8 +273,8 @@ def run_backup_test_cases():
     # backup_test_cases.OneC().create()
     # time.sleep(0)
 
-    # backup_test_cases.MsSql().create()
-    # time.sleep(0)
+    backup_test_cases.MsSql().create()
+    time.sleep(1)
     backup_test_cases.MsSql().create_with_archiver()
 
 
@@ -293,4 +292,4 @@ def run_cloud_sync_test_cases():
     time.sleep(0)
 
 
-run_backup_test_cases()
+run_cloud_sync_test_cases()

@@ -2,7 +2,7 @@ import datetime
 import os
 import random
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any, List, Dict
 
 from .exceptions import DriveNotExist, MandatoryPropertiesNotPresent, PathNotExist, \
     DrivesNotExist, ItsNotFile
@@ -43,7 +43,7 @@ class AbstractConfig(ABC):
         pass
 
     @abstractmethod
-    def _paths_properties_for_check(self) -> List[str]:
+    def _paths_properties_for_check(self) -> List[Dict[str, bool]]:
         pass
 
     def _check_mandatory_properties(self, mandatory_properties: List[str]):
@@ -59,38 +59,51 @@ class AbstractConfig(ABC):
         if failed_properties:
             raise MandatoryPropertiesNotPresent(failed_properties)
 
-    def _check_root_drives_from_paths_properties(self, paths_properties: List[str]):
+    def _check_root_drives_from_paths_properties(self, paths_properties: List[Dict[str, bool]]):
         failed_properties = {}
-        for prop in paths_properties:
-            try:
-                prop_val = self[prop.lower()]
-                if prop_val is not None and prop_val != '':
-                    abc_path = os.path.abspath(prop_val)
-                    root_drive, _ = os.path.splitdrive(abc_path)
-                    if not os.path.exists(root_drive):
-                        failed_properties.update({prop: prop_val})
-            except AttributeError:
-                pass
+        for pair in paths_properties:
+            for prop, isMustBeFile in pair.items():
+                try:
+                    prop_val = self[prop.lower()]
+                    if prop_val is not None and prop_val != '':
+                        abc_path = os.path.abspath(prop_val)
+                        root_drive, _ = os.path.splitdrive(abc_path)
+                        if not os.path.exists(root_drive):
+                            failed_properties.update({prop: prop_val})
+                except AttributeError:
+                    pass
 
         if failed_properties:
             raise DrivesNotExist(failed_properties)
 
-    def _check_paths_properties(self, paths_properties: List[str]):
-        failed_properties = {}
-        for prop in paths_properties:
-            try:
-                prop_val = self[prop.lower()]
-                if prop_val is not None and prop_val != '' and not os.path.exists(os.path.abspath(prop_val)):
-                    abc_path = os.path.abspath(prop_val)
-                    failed_path = prop_val
-                    if abc_path != prop_val:
-                        failed_path = f'{prop_val}, полный путь - {abc_path}'
-                    failed_properties.update({prop: failed_path})
-            except AttributeError:
-                failed_properties.update({prop: ''})
+    def _check_paths_properties(self, paths_properties:  List[Dict[str, bool]]):
+        failed_paths = {}
+        failed_files = {}
 
-        if failed_properties:
-            raise PathNotExist(failed_properties)
+        for pair in paths_properties:
+            for prop, isMustBeFile in pair.items():
+                try:
+                    prop_val = self[prop.lower()]
+                    if prop_val is not None and prop_val != '':
+                        abc_path = os.path.abspath(prop_val)
+                        if not os.path.exists(abc_path):
+                            failed_path = prop_val
+                            if abc_path != prop_val:
+                                failed_path = f'{prop_val}, полный путь - {abc_path}'
+                            failed_paths.update({prop: failed_path})
+                        elif isMustBeFile and not os.path.isfile(abc_path):
+                            failed_path = prop_val
+                            if abc_path != prop_val:
+                                failed_path = f'{prop_val}, полный путь - {abc_path}'
+                            failed_files.update({prop: failed_path})
+
+                except AttributeError:
+                    failed_paths.update({prop: ''})
+
+        if failed_paths:
+            raise PathNotExist(failed_paths)
+        if failed_files:
+            raise ItsNotFile(failed_files)
 
     @staticmethod
     def _generate_label(use_millisec=False) -> str:
@@ -129,12 +142,6 @@ class ConfigPgBaseBackuper(AbstractConfig):
     _path_to_7zip: str = ''
     _temp_path: str = './temp'
 
-    def __init__(self, params: {str: Any}):
-        super().__init__(params)
-        if not os.path.isfile(self.pg_basebackup):
-            raise ItsNotFile({'pg_basebackup': self.pg_basebackup})
-
-
     def _mandatory_properties_for_check(self) -> List[str]:
         return [
             'path_to_backups',
@@ -144,11 +151,11 @@ class ConfigPgBaseBackuper(AbstractConfig):
             'postgresql_password'
         ]
 
-    def _paths_properties_for_check(self) -> List[str]:
+    def _paths_properties_for_check(self) -> List[Dict[str, bool]]:
         return [
-            'postgresql_instance_path',
-            'pg_basebackup',
-            'path_to_7zip'
+            {'postgresql_instance_path': False},
+            {'pg_basebackup': True},
+            {'path_to_7zip': True}
         ]
 
     @property
@@ -259,11 +266,11 @@ class ConfigPgDumpBackuper(AbstractConfig):
             'postgresql_password'
         ]
 
-    def _paths_properties_for_check(self) -> List[str]:
+    def _paths_properties_for_check(self) -> List[Dict[str, bool]]:
         return [
-            'postgresql_instance_path',
-            'pg_dump',
-            'path_to_7zip'
+            {'postgresql_instance_path': False},
+            {'pg_dump': True},
+            {'path_to_7zip': True}
         ]
 
     @property
@@ -378,10 +385,10 @@ class Config1CFBBackuper(AbstractConfig):
             'path_to_7zip',
         ]
 
-    def _paths_properties_for_check(self) -> List[str]:
+    def _paths_properties_for_check(self) -> List[Dict[str, bool]]:
         return [
-            'path_to_1c_db_dir',
-            'path_to_7zip'
+            {'path_to_1c_db_dir': True},
+            {'path_to_7zip': True}
         ]
 
     @property
@@ -447,8 +454,10 @@ class ConfigMsSqlBackuper(AbstractConfig):
             'database_name'
         ]
 
-    def _paths_properties_for_check(self) -> List[str]:
-        return []
+    def _paths_properties_for_check(self) -> List[Dict[str, bool]]:
+        return [
+            {'path_to_7zip': True}
+        ]
 
     @property
     def path_to_backups(self) -> str:
@@ -559,10 +568,10 @@ class ConfigAWSClient(AbstractConfig):
             'secret_access_key',
         ]
 
-    def _paths_properties_for_check(self) -> List[str]:
+    def _paths_properties_for_check(self) -> List[Dict[str, bool]]:
         return [
-            'path_to_backups',
-            'general_path_to_backups'
+            {'path_to_backups': False},
+            {'general_path_to_backups': False}
         ]
 
     @property
@@ -676,11 +685,11 @@ class ConfigCleaner(AbstractConfig):
             'storage_time',
         ]
 
-    def _paths_properties_for_check(self) -> List[str]:
+    def _paths_properties_for_check(self) -> List[Dict[str, bool]]:
         return [
-            'path_to_backups',
-            'full_path_to_backups',
-            'path_to_wal_files'
+            {'path_to_backups': False},
+            {'full_path_to_backups': False},
+            {'path_to_wal_files': False}
         ]
 
     @property
