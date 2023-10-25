@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Any, List
 
 from .exceptions import DriveNotExist, MandatoryPropertiesNotPresent, PathNotExist, \
-    DrivesNotExist
+    DrivesNotExist, ItsNotFile
 
 
 class AbstractConfig(ABC):
@@ -128,6 +128,12 @@ class ConfigPgBaseBackuper(AbstractConfig):
 
     _path_to_7zip: str = ''
     _temp_path: str = './temp'
+
+    def __init__(self, params: {str: Any}):
+        super().__init__(params)
+        if not os.path.isfile(self.pg_basebackup):
+            raise ItsNotFile({'pg_basebackup': self.pg_basebackup})
+
 
     def _mandatory_properties_for_check(self) -> List[str]:
         return [
@@ -429,19 +435,16 @@ class ConfigMsSqlBackuper(AbstractConfig):
 
     _database_name: str = ''
 
-    _ms_sql_username: str = 'sa'
+    _ms_sql_username: str = ''
     _ms_sql_password: str = ''
 
     _path_to_7zip: str = ''
-    _temp_path: str = './temp'
 
     def _mandatory_properties_for_check(self) -> List[str]:
         return [
             'path_to_backups',
             'custom_dir',
-            'database_name',
-            'ms_sql_username',
-            'ms_sql_password'
+            'database_name'
         ]
 
     def _paths_properties_for_check(self) -> List[str]:
@@ -467,14 +470,14 @@ class ConfigMsSqlBackuper(AbstractConfig):
         return self._database_name
 
     def set_database_name(self, value: str):
-        self._database_name = value
+        self._database_name = str(value)
 
     @property
     def ms_sql_username(self) -> str:
         return self._ms_sql_username
 
-    def set_postgresql_username(self, value: str):
-        self._ms_sql_username = value
+    def set_ms_sql_username(self, value: str):
+        self._ms_sql_username = str(value)
 
     @property
     def ms_sql_password(self) -> str:
@@ -488,16 +491,9 @@ class ConfigMsSqlBackuper(AbstractConfig):
         return self._path_to_7zip
 
     def set_path_to_7zip(self, value: str):
+        value = os.path.abspath(value)
         super()._check_disk_for_parameter(value, 'path_to_7zip')
         self._path_to_7zip = value + '\\7za.exe'
-
-    @property
-    def temp_path(self) -> str:
-        return self._temp_path
-
-    def set_temp_path(self, value: str):
-        super()._check_disk_for_parameter(value, 'temp_path')
-        self._temp_path = value
 
     # Properties without class fields
     @property

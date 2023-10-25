@@ -267,6 +267,7 @@ class MsSqlBackuper(Executor):
     def __init__(self, config: ConfigMsSqlBackuper):
         super().__init__(config)
         self._config = config
+        self._authorize_by_os_user = len(config.ms_sql_username) + len(config.ms_sql_password) == 0
 
     @staticmethod
     def config_class():
@@ -276,28 +277,8 @@ class MsSqlBackuper(Executor):
         self._create_backup()
 
     def _create_backup(self):
-        bak_file_name = f'{self._config.database_name}_{self._config.label}.bak'
-        bak_full_path = f'{self._config.full_path_to_backups}\\{bak_file_name}'
-        if not os.path.exists(self._config.full_path_to_backups):
-            os.makedirs(self._config.full_path_to_backups)
-
-        self._create_through_rom(bak_full_path)
-
-    def _create_through_rom(self, finish_bak_path):
-        if self._config.use_external_archiver:
-            if not os.path.exists(self._config.temp_path):
-                os.makedirs(self._config.temp_path)
-            abc_temp_path = os.path.abspath(self._config.temp_path)
-            bak_full_path = f'{abc_temp_path}\\{os.path.basename(finish_bak_path)}'
-        else:
-            bak_full_path = finish_bak_path
-        a =  f"BACKUP DATABASE [{self._config.database_name}] TO DISK = '{bak_full_path}' WITH FORMAT, COMPRESSION"
-        comm_args = ['sqlcmd',
-                     '-U', self._config.ms_sql_username,
-                     '-P', self._config.ms_sql_password,
-                     '-Q',
-                        a]
-
+        finish_bak_path = self._get_existing_finish_path()
+        comm_args = self._create_args(finish_bak_path)
         process = subprocess.run(
             comm_args,
             stdout=subprocess.PIPE,
@@ -306,7 +287,30 @@ class MsSqlBackuper(Executor):
         self._throw_error_if_create_process_failed(process.stdout)
 
         if self._config.use_external_archiver:
-            self._archive_with_external_tool(bak_full_path, finish_bak_path)
+            self._archive_with_external_tool(finish_bak_path)
+
+    def _get_existing_finish_path(self) -> str:
+        bak_file_name = f'{self._config.database_name}_{self._config.label}.bak'
+        bak_full_path = f'{self._config.full_path_to_backups}\\{bak_file_name}'
+        if not os.path.exists(self._config.full_path_to_backups):
+            os.makedirs(self._config.full_path_to_backups)
+        return bak_full_path
+
+    def _create_args(self, bak_full_path) -> [str]:
+        comm_args = ['sqlcmd']
+        if self._authorize_by_os_user:
+            comm_args.append('-E')
+        else:
+            user_name = 'sa' if len(self._config.ms_sql_username) == 0 else self._config.ms_sql_username
+            comm_args.extend([
+                '-U', user_name,
+                '-P', self._config.ms_sql_password])
+
+        comm_args.extend(
+            ['-Q',
+             f"BACKUP DATABASE [{self._config.database_name}] TO DISK = '{bak_full_path}' WITH FORMAT, COMPRESSION"]
+        )
+        return comm_args
 
     @staticmethod
     def _throw_error_if_create_process_failed(subprocess_output):
@@ -317,12 +321,10 @@ class MsSqlBackuper(Executor):
         if error_key_ru in message.lower() or error_key_eng in message.lower() or error_key in message:
             raise MsSqlCreateError(message)
 
-    def _archive_with_external_tool(self, source, target):
-        comm_args = f'"{self._config.path_to_7zip}" a -sdel "{target}.xz" "{source}"'
+    def _archive_with_external_tool(self, source):
+        target = source + '.xz'
+        comm_args = f'"{self._config.path_to_7zip}" a -sdel "{target}" "{source}"'
         try:
             subprocess.check_output(comm_args, stderr=subprocess.PIPE, shell=True)
         except Exception as e:
-            try:
-                os.remove(source)
-            finally:
-                raise ArchiveCreateError(e)
+            raise ArchiveCreateError(e)

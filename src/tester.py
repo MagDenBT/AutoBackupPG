@@ -14,7 +14,7 @@ class CommonSet:
 
     path_to_backups = r'C:\backup'
     custom_dir = r'Sales depart'
-    path_to_7zip = r'./7zip'
+    path_to_7zip = r'./src/7zip'
     access_key_id = _cfg.get('Ob', 'key_id')
     secret_access_key = _cfg.get('Ob', 'key')
     bucket = _cfg.get('Ob', 'bucket')
@@ -52,7 +52,6 @@ class BackupersSet:
 
     ms_sql = {
         'database_name': r'mpr',
-        'ms_sql_username': 'sa',
         'ms_sql_password': '1122',
     }
 
@@ -268,15 +267,15 @@ def run_backup_test_cases():
     # time.sleep(0)
     #
     # backup_test_cases.PG().create_pg_base()
-    # time.sleep(0)
+    # time.sleep(1)
     # backup_test_cases.PG().create_pg_base_with_archiver()
     # time.sleep(0)
     #
     # backup_test_cases.OneC().create()
     # time.sleep(0)
 
-    backup_test_cases.MsSql().create()
-    time.sleep(0)
+    # backup_test_cases.MsSql().create()
+    # time.sleep(0)
     backup_test_cases.MsSql().create_with_archiver()
 
 

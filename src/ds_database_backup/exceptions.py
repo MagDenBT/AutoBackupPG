@@ -66,6 +66,17 @@ class PathNotExist(Exception):
         )
         super().__init__(msg)
 
+class ItsNotFile(Exception):
+    MSG_TEMPLATE = (
+        'Ошибка инициализации настроек. В этом параметре должен быть путь к файлу: {parameter_and_path}'
+    )
+
+    def __init__(self, parameter_and_path: {str: str}):
+        msg = self.MSG_TEMPLATE.format(
+            parameter_and_path='\n'.join(
+                [f"Параметр - {key}, путь - {value}" for key, value in parameter_and_path.items()]),
+        )
+        super().__init__(msg)
 
 class ConfigTypeMismatch(Exception):
     MSG_TEMPLATE = (
