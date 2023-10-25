@@ -14,6 +14,7 @@ class AbstractConfig(ABC):
         'full': 'Full',
         'dumps': 'Dumps',
         'onec': 'OneC_file_bases',
+        'mssql': 'MS_SQL'
     }
 
     def __getitem__(self, item):
@@ -182,21 +183,21 @@ class ConfigPgBaseBackuper(AbstractConfig):
         return self._postgresql_username
 
     def set_postgresql_username(self, value: str):
-        self._postgresql_username = value
+        self._postgresql_username = str(value)
 
     @property
     def postgresql_password(self) -> str:
         return self._postgresql_password
 
     def set_postgresql_password(self, value: str):
-        self._postgresql_password = value
+        self._postgresql_password = str(value)
 
     @property
     def pg_port(self) -> str:
         return self._pg_port
 
     def set_pg_port(self, value: str):
-        self._pg_port = value
+        self._pg_port = str(value)
 
     @property
     def path_to_7zip(self) -> str:
@@ -301,21 +302,21 @@ class ConfigPgDumpBackuper(AbstractConfig):
         return self._postgresql_username
 
     def set_postgresql_username(self, value: str):
-        self._postgresql_username = value
+        self._postgresql_username = str(value)
 
     @property
     def postgresql_password(self) -> str:
         return self._postgresql_password
 
     def set_postgresql_password(self, value: str):
-        self._postgresql_password = value
+        self._postgresql_password = str(value)
 
     @property
     def pg_port(self) -> str:
         return self._pg_port
 
     def set_pg_port(self, value: str):
-        self._pg_port = value
+        self._pg_port = str(value)
 
     @property
     def path_to_7zip(self) -> str:
@@ -420,6 +421,96 @@ class Config1CFBBackuper(AbstractConfig):
     @property
     def full_path_to_backups(self) -> str:
         return f'{self._path_to_backups}\\{self._custom_dir}\\{self.backup_type_dir}'
+
+
+class ConfigMsSqlBackuper(AbstractConfig):
+    _path_to_backups: str = ''
+    _custom_dir: str = ''
+
+    _database_name: str = ''
+
+    _ms_sql_username: str = 'sa'
+    _ms_sql_password: str = ''
+
+    _path_to_7zip: str = ''
+    _temp_path: str = './temp'
+
+    def _mandatory_properties_for_check(self) -> List[str]:
+        return [
+            'path_to_backups',
+            'custom_dir',
+            'database_name',
+            'ms_sql_username',
+            'ms_sql_password'
+        ]
+
+    def _paths_properties_for_check(self) -> List[str]:
+        return []
+
+    @property
+    def path_to_backups(self) -> str:
+        return self._path_to_backups
+
+    def set_path_to_backups(self, value: str):
+        super()._check_disk_for_parameter(value, 'path_to_backups')
+        self._path_to_backups = value
+
+    @property
+    def custom_dir(self) -> str:
+        return self._custom_dir
+
+    def set_custom_dir(self, value: str):
+        self._custom_dir = value
+
+    @property
+    def database_name(self) -> str:
+        return self._database_name
+
+    def set_database_name(self, value: str):
+        self._database_name = value
+
+    @property
+    def ms_sql_username(self) -> str:
+        return self._ms_sql_username
+
+    def set_postgresql_username(self, value: str):
+        self._ms_sql_username = value
+
+    @property
+    def ms_sql_password(self) -> str:
+        return self._ms_sql_password
+
+    def set_ms_sql_password(self, value: str):
+        self._ms_sql_password = value
+
+    @property
+    def path_to_7zip(self) -> str:
+        return self._path_to_7zip
+
+    def set_path_to_7zip(self, value: str):
+        super()._check_disk_for_parameter(value, 'path_to_7zip')
+        self._path_to_7zip = value + '\\7za.exe'
+
+    @property
+    def temp_path(self) -> str:
+        return self._temp_path
+
+    def set_temp_path(self, value: str):
+        super()._check_disk_for_parameter(value, 'temp_path')
+        self._temp_path = value
+
+    # Properties without class fields
+    @property
+    def backup_type_dir(self):
+        return super(ConfigMsSqlBackuper, self).backup_type_dirs.get('mssql')
+
+    @property
+    def full_path_to_backups(self) -> str:
+        return f'{self._path_to_backups}\\{self.custom_dir}\\{self.backup_type_dir}'
+
+    @property
+    def use_external_archiver(self) -> bool:
+        return self._path_to_7zip != ''
 
 
 class ConfigAWSClient(AbstractConfig):

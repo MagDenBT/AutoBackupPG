@@ -153,6 +153,18 @@ class OneCFBBackupCreateError(Exception):
         super().__init__(msg)
 
 
+class MsSqlCreateError(Exception):
+    MSG_TEMPLATE = (
+        'Ошибка при создании бэкапа MS SQL - {error_text}'
+    )
+
+    def __init__(self, error_text):
+        msg = self.MSG_TEMPLATE.format(
+            error_text=error_text,
+        )
+        super().__init__(msg)
+
+
 class AWSError(Exception):
 
     def __init__(self, msg: str):

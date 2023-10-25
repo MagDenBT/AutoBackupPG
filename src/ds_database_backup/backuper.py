@@ -2,8 +2,8 @@ import os
 import shutil
 import subprocess
 from .exceptions import PgBaseBackupCreateError, \
-    ArchiveCreateError, PgDumpRunError, PgDumpCreateError, OneCFBBackupCreateError
-from .configs import ConfigPgBaseBackuper, ConfigPgDumpBackuper, Config1CFBBackuper
+    ArchiveCreateError, PgDumpRunError, PgDumpCreateError, OneCFBBackupCreateError, MsSqlCreateError
+from .configs import ConfigPgBaseBackuper, ConfigPgDumpBackuper, Config1CFBBackuper, ConfigMsSqlBackuper
 from .executor import Executor
 from .utils import Utils
 
@@ -73,8 +73,10 @@ class PgBaseBackuper(Executor):
         try:
             subprocess.check_output(comm_args, stderr=subprocess.PIPE, shell=True)
         except Exception as e:
-            os.remove(self._config.temp_path)
-            raise ArchiveCreateError(e)
+            try:
+                os.remove(self._config.temp_path)
+            finally:
+                raise ArchiveCreateError(e)
 
     def _move_to_permanent_dir(self, create_subdir=True):
         label = self._config.label
@@ -227,8 +229,10 @@ class PgDumpBackuper(Executor):
         try:
             subprocess.check_output(comm_args, stderr=subprocess.PIPE, shell=True)
         except Exception as e:
-            os.remove(source)
-            raise ArchiveCreateError(e)
+            try:
+                os.remove(source)
+            finally:
+                raise ArchiveCreateError(e)
 
 
 class OneCFbBackuper(Executor):
@@ -256,3 +260,69 @@ class OneCFbBackuper(Executor):
         text_error = Utils.decode_text_or_return_error_msg(process.stderr)
         if text_error:
             raise OneCFBBackupCreateError(text_error)
+
+
+class MsSqlBackuper(Executor):
+
+    def __init__(self, config: ConfigMsSqlBackuper):
+        super().__init__(config)
+        self._config = config
+
+    @staticmethod
+    def config_class():
+        return ConfigMsSqlBackuper
+
+    def start(self):
+        self._create_backup()
+
+    def _create_backup(self):
+        bak_file_name = f'{self._config.database_name}_{self._config.label}.bak'
+        bak_full_path = f'{self._config.full_path_to_backups}\\{bak_file_name}'
+        if not os.path.exists(self._config.full_path_to_backups):
+            os.makedirs(self._config.full_path_to_backups)
+
+        self._create_through_rom(bak_full_path)
+
+    def _create_through_rom(self, finish_bak_path):
+        if self._config.use_external_archiver:
+            if not os.path.exists(self._config.temp_path):
+                os.makedirs(self._config.temp_path)
+            abc_temp_path = os.path.abspath(self._config.temp_path)
+            bak_full_path = f'{abc_temp_path}\\{os.path.basename(finish_bak_path)}'
+        else:
+            bak_full_path = finish_bak_path
+        a =  f"BACKUP DATABASE [{self._config.database_name}] TO DISK = '{bak_full_path}' WITH FORMAT, COMPRESSION"
+        comm_args = ['sqlcmd',
+                     '-U', self._config.ms_sql_username,
+                     '-P', self._config.ms_sql_password,
+                     '-Q',
+                        a]
+
+        process = subprocess.run(
+            comm_args,
+            stdout=subprocess.PIPE,
+        )
+
+        self._throw_error_if_create_process_failed(process.stdout)
+
+        if self._config.use_external_archiver:
+            self._archive_with_external_tool(bak_full_path, finish_bak_path)
+
+    @staticmethod
+    def _throw_error_if_create_process_failed(subprocess_output):
+        message = Utils.decode_text_or_return_error_msg(subprocess_output)
+        error_key_ru = 'не существует'
+        error_key_eng = 'does not exist'
+        error_key = 'Msg '
+        if error_key_ru in message.lower() or error_key_eng in message.lower() or error_key in message:
+            raise MsSqlCreateError(message)
+
+    def _archive_with_external_tool(self, source, target):
+        comm_args = f'"{self._config.path_to_7zip}" a -sdel "{target}.xz" "{source}"'
+        try:
+            subprocess.check_output(comm_args, stderr=subprocess.PIPE, shell=True)
+        except Exception as e:
+            try:
+                os.remove(source)
+            finally:
+                raise ArchiveCreateError(e)

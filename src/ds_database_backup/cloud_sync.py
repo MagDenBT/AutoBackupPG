@@ -98,7 +98,7 @@ class AWSClient(Executor):
 
     @staticmethod
     def _get_valid_extensions():
-        return ['.gz', '.xz', '.txz', '.backup', '.dump']
+        return ['.gz', '.xz', '.txz', '.backup', '.dump', '.bak']
 
     def _upload_to_cloud(self):
         to_upload = self._compute_files_to_upload()

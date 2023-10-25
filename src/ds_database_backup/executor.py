@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict
+
 from .exceptions import ConfigTypeMismatch, ModuleNotFound
 
-DS_VERSION = '2.0.2'
+DS_VERSION = '2.0.3'
 
 
 class Executor(ABC):
@@ -23,13 +24,14 @@ class Executor(ABC):
 
 
 class ModuleFinder(Enum):
-    from .backuper import PgBaseBackuper, PgDumpBackuper, OneCFbBackuper
+    from .backuper import PgBaseBackuper, PgDumpBackuper, OneCFbBackuper, MsSqlBackuper
     from .local_cleaner import Cleaner
     from .cloud_sync import AWSClient
 
     PG_BASE_BACKUPER = PgBaseBackuper
     PG_DUMP_BACKUPER = PgDumpBackuper
     ONE_C_FB_BACKUPER = OneCFbBackuper
+    MS_SQL_BACKUPER = MsSqlBackuper
 
     CLEANER = Cleaner
 
