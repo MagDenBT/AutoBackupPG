@@ -22,7 +22,7 @@ class DsSystemScenarioForKIP(BaseScenario):
 
         if DS_VERSION != version_must_be:
             raise SACError('ARGS_ERROR', f'Версия ds-скриптов на машине - {DS_VERSION},'
-                                                   f' а должна быть - {version_must_be}')
+                                         f' а должна быть - {version_must_be}')
 
     def __check_config(self):
         module_name = self.config["module_name"]
@@ -61,7 +61,7 @@ class DsSystemScenarioForKIP(BaseScenario):
         if self._should_restrict():
             self._restrict_cpu_consumption()
             if ModuleFinder.find_by_name(self.ds_module_name) is ModuleFinder.AWS_CLIENT:
-                self._limit_bandwidth()
+                self._limit_upload_speed()
 
     def _should_restrict(self) -> bool:
         kip_context = self.config.scenario_context
@@ -88,7 +88,7 @@ class DsSystemScenarioForKIP(BaseScenario):
         current_process.nice(psutil.IDLE_PRIORITY_CLASS)
         global_logger.info(message=f'Активировано ограничение потребления ресурсов CPU')
 
-    def _limit_bandwidth(self):
+    def _limit_upload_speed(self):
         kip_context = self.config.scenario_context
         max_bandwidth_percent = kip_context.get('max_bandwidth_percent')
         if max_bandwidth_percent is None:
@@ -96,16 +96,22 @@ class DsSystemScenarioForKIP(BaseScenario):
 
         st = speedtest.Speedtest()
         st.get_servers()
-        current_upload_speed_bits = st.upload()
-        current_upload_speed_mbit = round(current_upload_speed_bits / 1000000)
+        current_bits = st.upload()
+        current_mbit = round(current_bits / 1000000, 2)
+        limited_bits = round(current_bits / 100 * max_bandwidth_percent)
 
-        limited_upload_speed_bits = round(current_upload_speed_bits / 100 * max_bandwidth_percent)
-        limited_upload_speed_bytes = round(limited_upload_speed_bits / 8)
-        kip_context.update({'max_bandwidth_bytes': limited_upload_speed_bytes})
+        min_threshold_bits = 700000  # 700 Kbit/s
+        additional_text = ''
+        if limited_bits < min_threshold_bits:
+            limited_bits = min_threshold_bits
+            additional_text = '(минимальный порог)'
 
-        limited_upload_speed_mbit = round(limited_upload_speed_bits / 1000000)
-        global_logger.info(message=f'Максимальная скорость выгрузки {current_upload_speed_mbit} Мбит/с'
-                                   f' ограничена до {limited_upload_speed_mbit} Мбит/с')
+        kip_context.update({'max_bandwidth_bytes': round(limited_bits / 8)})
+
+        limited_mbit = round(limited_bits / 1000000, 2)
+        global_logger.info(message=f'Максимальная скорость выгрузки {current_mbit} Мбит/с '
+                                   f'ограничена до {limited_mbit} Мбит/с {additional_text}')
+
 
 if __name__ == "__main__":
     DsSystemScenarioForKIP.main()

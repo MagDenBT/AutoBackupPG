@@ -4,7 +4,7 @@ from typing import Dict
 
 from .exceptions import ConfigTypeMismatch, ModuleNotFound
 
-DS_VERSION = '2.0.5'
+DS_VERSION = '2.0.6'
 
 
 class Executor(ABC):
