@@ -101,16 +101,19 @@ class DsSystemScenarioForKIP(BaseScenario):
         limited_bits = round(current_bits / 100 * max_bandwidth_percent)
 
         min_threshold_bits = 700000  # 700 Kbit/s
-        additional_text = ''
         if limited_bits < min_threshold_bits:
             limited_bits = min_threshold_bits
-            additional_text = '(минимальный порог)'
+            threshold_mbit = round(limited_bits / 1000000, 2)
+            global_logger.info(
+                message=f'Расчитанная скорость выгрузки {current_mbit} Мбит/с меньше минимального порога {threshold_mbit} Мбит/с.'
+                        f' Установлено ограничение по минимальному порогу, т.к. расчитанная скорость может быть '
+                        f'заниженной')
+        else:
+            limited_mbit = round(limited_bits / 1000000, 2)
+            global_logger.info(message=f'Максимальная скорость выгрузки {current_mbit} Мбит/с '
+                                       f'ограничена до {limited_mbit} Мбит/с')
 
         kip_context.update({'max_bandwidth_bytes': round(limited_bits / 8)})
-
-        limited_mbit = round(limited_bits / 1000000, 2)
-        global_logger.info(message=f'Максимальная скорость выгрузки {current_mbit} Мбит/с '
-                                   f'ограничена до {limited_mbit} Мбит/с {additional_text}')
 
 
 if __name__ == "__main__":
