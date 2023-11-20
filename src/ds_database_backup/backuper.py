@@ -66,7 +66,7 @@ class PgBaseBackuper(Executor):
                     os.remove(f'{path}\\{_obj}')
 
     def _archive_with_external_tool(self):
-        comm_args = f'"{self._config.path_to_7zip}" a -ttar -so -sdel -an "{self._config.temp_path}\\"*' \
+        comm_args = f'"{self._config.path_to_7zip}" a -ttar -mmt2 -so -sdel -an "{self._config.temp_path}\\"*' \
                     f' | "{self._config.path_to_7zip}" a -si' \
                     f' "{self._config.full_path_to_backups}\\{self._config.label}__base.txz" '
 
