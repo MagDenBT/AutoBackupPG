@@ -370,13 +370,19 @@ class AWSConnectionError(AWSError):
                     error_description = pair['Description']
                     break
         else:
-            error_description = str(error)
+            error_description = self._convert_message(str(error))
 
         msg = self.MSG_TEMPLATE.format(
             error_description=error_description,
         )
         super().__init__(msg)
 
+    @staticmethod
+    def _convert_message(msg: str) -> str:
+        search_text = "Could not connect to the endpoint URL:"
+        if search_text in msg:
+            return msg.replace(search_text, "Не удается установить соединение по адресу:")
+        return msg
 
 class RansomwareVirusTracesFound(Exception):
     MSG_TEMPLATE = (
