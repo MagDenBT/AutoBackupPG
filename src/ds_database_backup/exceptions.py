@@ -66,6 +66,7 @@ class PathNotExist(Exception):
         )
         super().__init__(msg)
 
+
 class ItsNotFile(Exception):
     MSG_TEMPLATE = (
         'Ошибка инициализации настроек. В параметре должен быть путь к файлу, а найдена папка: {parameter_and_path}'
@@ -77,6 +78,7 @@ class ItsNotFile(Exception):
                 [f"Параметр - {key}, путь - {value}" for key, value in parameter_and_path.items()]),
         )
         super().__init__(msg)
+
 
 class ConfigTypeMismatch(Exception):
     MSG_TEMPLATE = (
@@ -147,9 +149,14 @@ class PgDumpCreateError(Exception):
 
     def __init__(self, error_text):
         msg = self.MSG_TEMPLATE.format(
-            error_text=error_text,
+            error_text=self._convert_message(error_text),
         )
         super().__init__(msg)
+
+    def _convert_message(self, msg: str) -> str:
+        if "invalid page in" in msg:
+            return "База повреждена!"
+        return msg
 
 
 class OneCFBBackupCreateError(Exception):
