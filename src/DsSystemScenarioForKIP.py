@@ -71,7 +71,7 @@ class DsSystemScenarioForKIP(BaseScenario):
         if self._customer_schedule_is_correct(customer_work_start, customer_work_end):
             data = datetime.now()
             current_hour = data.time().hour
-            if customer_work_start <= current_hour <= customer_work_end:
+            if customer_work_start <= current_hour < customer_work_end:
                 global_logger.info(message=f'Время машины: {str(data)}')
                 return True
         return False
