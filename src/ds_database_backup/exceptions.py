@@ -101,9 +101,18 @@ class PgBaseBackupCreateError(Exception):
 
     def __init__(self, error_text: str):
         msg = self.MSG_TEMPLATE.format(
-            error_text=error_text,
+            error_text=self._convert_message(error_text),
         )
         super().__init__(msg)
+
+    @staticmethod
+    def _convert_message(msg: str) -> str:
+        if "could not get write-ahead log end position" in msg and "has already been removed" in msg:
+            return "Нужно увеличить значение wal_keep_segments (""количество временно хранимых WAL-файлов"", по ум. 0) " \
+                   "в postgresql.conf или обновить PG на версию выше 9. " \
+                   "Суть проблемы - пока создавался бэкап сгенерировался 1 или несколько новых WAL-файлов, " \
+                   "хранение которых не ""укладывается"" в параметр wal_keep_segments"
+        return msg
 
 
 class ArchiveCreateError(Exception):
@@ -153,9 +162,12 @@ class PgDumpCreateError(Exception):
         )
         super().__init__(msg)
 
-    def _convert_message(self, msg: str) -> str:
+    @staticmethod
+    def _convert_message(msg: str) -> str:
         if "invalid page in" in msg:
             return "База повреждена!"
+        if "No space left on device" in msg:
+            return "Недостаточно свободного места на диске"
         return msg
 
 
