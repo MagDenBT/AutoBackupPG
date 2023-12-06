@@ -20,9 +20,12 @@ class DsSystemScenarioForKIP(BaseScenario):
     def __check_ds_scripts_version(self):
         version_must_be = self.config["ds_scripts_version"]
 
-        if DS_VERSION != version_must_be:
-            raise SACError('ARGS_ERROR', f'Версия ds-скриптов на машине - {DS_VERSION},'
-                                         f' а должна быть - {version_must_be}')
+        if DS_VERSION < version_must_be:
+            raise SACError('ARGS_ERROR', f'Ds-скрипты на клиентской машине устарели ({DS_VERSION}),'
+                                         f' обновите до версии {version_must_be}')
+        elif DS_VERSION > version_must_be:
+            global_logger.warning(message= f'Ds-скрипты на клиентской машине новее ({DS_VERSION}),'
+                                         f' чем требует КИП {version_must_be}')
 
     def __check_config(self):
         module_name = self.config["module_name"]
