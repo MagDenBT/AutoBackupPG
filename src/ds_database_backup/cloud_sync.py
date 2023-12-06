@@ -158,7 +158,9 @@ class AWSClient(Executor):
         # Разделение пути на части
         path_parts = normalized_path.split(os.sep)
         # Находим индекс каталога идущего за custom_dir в пути
-        after_custom_dir_index = path_parts.index(self._config.custom_dir) + 1
+        normalized_custom_dir_parts = os.path.normpath(self._config.custom_dir).split(os.sep)
+        normalized_custom_dir = normalized_custom_dir_parts[len(normalized_custom_dir_parts)-1]
+        after_custom_dir_index = path_parts.index(normalized_custom_dir) + 1
         # Обрезаем путь до custom_dir включительно и преобразуем его в нужный формат
         path_parts = path_parts[after_custom_dir_index:]
         # Преобразуем имена каталогов в корректные для S3
