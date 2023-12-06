@@ -170,7 +170,11 @@ class Utils:
         detector = UniversalDetector()
         detector.feed(encode_bytes)
         detector.close()
+        # noinspection PyBroadException
         try:
             return encode_bytes.decode(detector.result.get('encoding'))
-        except Exception as e:
-            return f'Не удалось определить кодировку текста ошибки - {str(e)}'
+        except Exception:
+            try:
+                return encode_bytes.decode(errors='replace')
+            except Exception as e:
+                return f'Не удалось определить кодировку текста ошибки - {str(e)}'
