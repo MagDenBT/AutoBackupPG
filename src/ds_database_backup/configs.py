@@ -16,6 +16,7 @@ class AbstractConfig(ABC):
         'onec': 'OneC_file_bases',
         'mssql': 'MS_SQL'
     }
+    backup_naming_separator: str = '_%!s!%_'
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -140,7 +141,7 @@ class ConfigPgBaseBackuper(AbstractConfig):
     _pg_port: str = ''
 
     _path_to_7zip: str = ''
-    _temp_path: str = './temp'
+    _temp_path: str = ''
 
     def _mandatory_properties_for_check(self) -> List[str]:
         return [
@@ -222,7 +223,8 @@ class ConfigPgBaseBackuper(AbstractConfig):
 
     @property
     def temp_path(self) -> str:
-        return self._temp_path
+        val = f'{self.full_path_to_backups}\\temp' if self._temp_path == '' else self._temp_path == ''
+        return val
 
     def set_temp_path(self, value: str):
         super()._check_disk_for_parameter(value, 'temp_path')
@@ -255,7 +257,7 @@ class ConfigPgDumpBackuper(AbstractConfig):
     _pg_port: str = ''
 
     _path_to_7zip: str = ''
-    _temp_path: str = './temp'
+    _temp_path: str = ''
 
     def _mandatory_properties_for_check(self) -> List[str]:
         return [
@@ -341,7 +343,8 @@ class ConfigPgDumpBackuper(AbstractConfig):
 
     @property
     def temp_path(self) -> str:
-        return self._temp_path
+        val = f'{self.full_path_to_backups}\\temp' if self._temp_path == '' else self._temp_path == ''
+        return val
 
     def set_temp_path(self, value: str):
         super()._check_disk_for_parameter(value, 'temp_path')
@@ -361,8 +364,8 @@ class ConfigPgDumpBackuper(AbstractConfig):
         return self.postgresql_instance_path + '\\bin\\pg_dump.exe'
 
     @property
-    def pg_dumpall(self):
-        return self.postgresql_instance_path + '\\bin\\pg_dumpall.exe'
+    def pgsql(self):
+        return self.postgresql_instance_path + '\\bin\\psql'
 
     @property
     def use_external_archiver(self) -> bool:

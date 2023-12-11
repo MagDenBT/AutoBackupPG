@@ -31,13 +31,13 @@ class BackupersSet:
     }
 
     pg = {
-        'postgresql_instance_path': r'C:\Program Files\PostgreSQL\15',
+        'postgresql_instance_path': r'C:\Program Files\PostgreSQL\15.4-1.1C',
         'postgresql_username': 'postgres',
         'postgresql_password': '1122',
     }
 
     pg_base = {
-        # 'pg_basebackup': r'C:\backup\test_suite\pg_basebackup_14.6\pg_basebackup.exe',
+        'pg_basebackup': r'C:\backup\test_suite\pg_basebackup_14.6\pg_basebackup.exe',
     }
 
     pg_dump = {
@@ -161,7 +161,7 @@ class BackupTestCases:
 
         def create_pg_base(self):
             config = self._config.copy()
-            config.update(BackupersSet.pg_base)
+            # config.update(BackupersSet.pg_base)
 
             DsBuilder \
                 .build(ModuleFinder.PG_BASE_BACKUPER) \
@@ -170,7 +170,7 @@ class BackupTestCases:
 
         def create_pg_base_with_archiver(self):
             config = self._config.copy()
-            config.update(BackupersSet.pg_base)
+            # config.update(BackupersSet.pg_base)
             config.update(BackupersSet.archiver)
 
             DsBuilder \
@@ -246,23 +246,23 @@ class SyncTestCases:
 
 def run_backup_test_cases():
     backup_test_cases = BackupTestCases()
-    #
-    # backup_test_cases.PG().create_dump_by_base_name_rom()
+
+    backup_test_cases.PG().create_dump_by_base_name_rom() #1
+    time.sleep(0)
+    backup_test_cases.PG().create_dump_by_base_name_with_archiver_rom() #1
+    time.sleep(0)
+    # backup_test_cases.PG().create_dumps_for_all_bases_rom() #3
     # time.sleep(0)
-    # backup_test_cases.PG().create_dump_by_base_name_with_archiver_rom()
+    # backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_rom() #3
+    time.sleep(0)
+
+    backup_test_cases.PG().create_dump_by_base_name_RAM() #1
+    time.sleep(0)
+    backup_test_cases.PG().create_dump_by_base_name_with_archiver_RAM() #1
+    time.sleep(0)
+    # backup_test_cases.PG().create_dumps_for_all_bases_RAM() #3
     # time.sleep(0)
-    # backup_test_cases.PG().create_dumps_for_all_bases_rom()
-    # time.sleep(0)
-    # backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_rom()
-    # time.sleep(0)
-    #
-    # backup_test_cases.PG().create_dump_by_base_name_RAM()
-    # time.sleep(0)
-    # backup_test_cases.PG().create_dump_by_base_name_with_archiver_RAM()
-    # time.sleep(0)
-    # backup_test_cases.PG().create_dumps_for_all_bases_RAM()
-    # time.sleep(0)
-    # backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_RAM()
+    # backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_RAM() #3
     # time.sleep(0)
     #
     # backup_test_cases.PG().create_pg_base()
@@ -272,10 +272,10 @@ def run_backup_test_cases():
     #
     # backup_test_cases.OneC().create()
     # time.sleep(0)
-
-    backup_test_cases.MsSql().create()
-    time.sleep(1)
-    backup_test_cases.MsSql().create_with_archiver()
+    #
+    # backup_test_cases.MsSql().create()
+    # time.sleep(1)
+    # backup_test_cases.MsSql().create_with_archiver()
 
 
 def run_cleaner_test_cases():
@@ -292,4 +292,5 @@ def run_cloud_sync_test_cases():
     time.sleep(0)
 
 
+# run_cleaner_test_cases()
 run_cloud_sync_test_cases()

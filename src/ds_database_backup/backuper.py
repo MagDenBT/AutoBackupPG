@@ -23,6 +23,8 @@ class PgBaseBackuper(Executor):
 
     def _create_backup(self):
         self._clear_dir(self._config.temp_path)
+        if not os.path.exists(self._config.temp_path):
+            os.makedirs(self._config.temp_path)
 
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self._config.postgresql_password
@@ -55,7 +57,7 @@ class PgBaseBackuper(Executor):
             self._archive_with_external_tool()
         else:
             self._move_to_permanent_dir()
-            self._clear_dir(self._config.temp_path)
+        shutil.rmtree(self._config.temp_path)
 
     @staticmethod
     def _clear_dir(path):
@@ -66,7 +68,7 @@ class PgBaseBackuper(Executor):
                     os.remove(f'{path}\\{_obj}')
 
     def _archive_with_external_tool(self):
-        comm_args = f'"{self._config.path_to_7zip}" a -ttar -mmt2 -so -sdel -an "{self._config.temp_path}\\"*' \
+        comm_args = f'"{self._config.path_to_7zip}" a -ttar -so -sdel -an "{self._config.temp_path}\\"*' \
                     f' | "{self._config.path_to_7zip}" a -si' \
                     f' "{self._config.full_path_to_backups}\\{self._config.label}__base.txz" '
 
@@ -109,26 +111,47 @@ class PgDumpBackuper(Executor):
         self._create_backup()
 
     def _create_backup(self):
+        for base_name in self._get_bases_list():
+            dump_name = Utils.create_backup_name(base_name, self._config.label, 'dump')
+            dump_full_path = f'{self._config.full_path_to_backups}\\{dump_name}'
+            if not os.path.exists(self._config.full_path_to_backups):
+                os.makedirs(self._config.full_path_to_backups)
 
-        all_bases = self._config.database_name is None or self._config.database_name == ""
+            if self._config.use_temp_dump:
+                self._create_through_rom(dump_full_path, base_name)
+            else:
+                self._create_through_stdout(dump_full_path, base_name)
 
-        base_name = "all_bases" if all_bases else self._config.database_name
+    def _get_bases_list(self) -> [str]:
+        if self._config.database_name is not None and self._config.database_name != "":
+            return [self._config.database_name]
 
-        dump_name = f'{base_name}_{self._config.label}.dump'
-        dump_full_path = f'{self._config.full_path_to_backups}\\{dump_name}'
-        if not os.path.exists(self._config.full_path_to_backups):
-            os.makedirs(self._config.full_path_to_backups)
+        my_env = os.environ.copy()
+        my_env["PGPASSWORD"] = self._config.postgresql_password
+        comm_args = [self._config.pgsql,
+                     '-U', self._config.postgresql_username,
+                     '-c',
+                     "SELECT string_agg(datname, ', ') FROM pg_database "
+                     "WHERE datistemplate = false AND datname != 'postgres'",
+                     '--pset', "footer=off",
+                     '-t']
 
-        if self._config.use_temp_dump:
-            self._create_through_rom(dump_full_path, all_bases)
-        else:
-            self._create_through_stdout(dump_full_path, all_bases)
+        if self._config.pg_port is not None and self._config.pg_port != '':
+            comm_args.insert(1, '-p')
+            comm_args.insert(2, self._config.pg_port)
 
-    def _create_through_stdout(self, dump_full_path, all_bases: bool):
-        if all_bases:
-            comm_args = self._all_bases_command_through_stdout(dump_full_path)
-        else:
-            comm_args = self._specific_base_command_through_stdout(dump_full_path)
+        process = subprocess.run(
+            comm_args,
+            stdout=subprocess.PIPE,
+            env=my_env,
+        )
+
+        message_from_server = Utils.decode_text_or_return_error_msg(process.stdout).strip()
+        bases_list = [s.strip() for s in message_from_server.split(',') if s.strip()]
+        return bases_list
+
+    def _create_through_stdout(self, dump_full_path, base_name: str):
+        comm_args = self._specific_base_command_through_stdout(dump_full_path, base_name)
 
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self._config.postgresql_password
@@ -140,25 +163,14 @@ class PgDumpBackuper(Executor):
 
         self._throw_error_if_create_process_failed(output)
 
-    def _all_bases_command_through_stdout(self, dump_full_path):
-        port_arg = ''
-        if self._config.pg_port is not None and self._config.pg_port != '':
-            port_arg = f' -p {self._config.pg_port}'
-        comm_args = f'"{self._config.pg_dumpall}"{port_arg} -U {self._config.postgresql_username}'
-        if self._config.use_external_archiver:
-            comm_args = comm_args + f' | "{self._config.path_to_7zip}" a -si "{dump_full_path}.xz"'
-        else:
-            comm_args += f' > "{dump_full_path}"'
-        return comm_args
-
-    def _specific_base_command_through_stdout(self, dump_full_path):
+    def _specific_base_command_through_stdout(self, dump_full_path, base_name):
         port_arg = ''
         if self._config.pg_port is not None and self._config.pg_port != '':
             port_arg = f' -p {self._config.pg_port}'
 
         comm_args = f'"{self._config.pg_dump}"{port_arg}' \
                     f' -U {self._config.postgresql_username}' \
-                    f' -Fc {self._config.database_name}'
+                    f' -Fc {base_name}'
 
         if self._config.use_external_archiver:
             comm_args = comm_args + f' | "{self._config.path_to_7zip}" a -si "{dump_full_path}.xz"'
@@ -176,7 +188,7 @@ class PgDumpBackuper(Executor):
         if pg_error:
             raise PgDumpCreateError(pg_error)
 
-    def _create_through_rom(self, finish_dump_path, all_bases: bool):
+    def _create_through_rom(self, finish_dump_path, base_name: str):
         if self._config.use_external_archiver:
             if not os.path.exists(self._config.temp_path):
                 os.makedirs(self._config.temp_path)
@@ -184,8 +196,7 @@ class PgDumpBackuper(Executor):
         else:
             dump_full_path = finish_dump_path
 
-        comm_args = self._all_bases_command_through_rom(
-            dump_full_path) if all_bases else self._specific_base_command_through_rom(dump_full_path)
+        comm_args = self._specific_base_command_through_rom(dump_full_path, base_name)
 
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self._config.postgresql_password
@@ -201,23 +212,15 @@ class PgDumpBackuper(Executor):
 
         if self._config.use_external_archiver:
             self._archive_with_external_tool(dump_full_path, finish_dump_path)
+        if os.path.exists(self._config.temp_path):
+            shutil.rmtree(self._config.temp_path)
 
-    def _all_bases_command_through_rom(self, dump_full_path):
-        comm_args = [self._config.pg_dumpall,
-                     '-U', self._config.postgresql_username,
-                     '-f', dump_full_path
-                     ]
-        if self._config.pg_port is not None and self._config.pg_port != '':
-            comm_args.insert(1, '-p')
-            comm_args.insert(2, self._config.pg_port)
-        return comm_args
-
-    def _specific_base_command_through_rom(self, dump_full_path):
+    def _specific_base_command_through_rom(self, dump_full_path, base_name):
         comm_args = [self._config.pg_dump,
                      '-U', self._config.postgresql_username,
                      '-Fc',
                      '-f', dump_full_path,
-                     self._config.database_name
+                     base_name
                      ]
         if self._config.pg_port is not None and self._config.pg_port != '':
             comm_args.insert(1, '-p')
@@ -249,7 +252,8 @@ class OneCFbBackuper(Executor):
         self._create_backup()
 
     def _create_backup(self) -> None:
-        target_file = f'{self._config.full_path_to_backups}\\{self._config.label}_{self._config.cd_file_name}.xz'
+        backup_name = Utils.create_backup_name(self._config.cd_file_name, self._config.label, 'xz')
+        target_file = f'{self._config.full_path_to_backups}\\{backup_name}'
         comm_args = [f'{self._config.path_to_7zip}', 'a', target_file, '-ssw', self._config.path_to_1c_db_dir]
 
         process = subprocess.run(
@@ -290,7 +294,7 @@ class MsSqlBackuper(Executor):
             self._archive_with_external_tool(finish_bak_path)
 
     def _get_existing_finish_path(self) -> str:
-        bak_file_name = f'{self._config.database_name}_{self._config.label}.bak'
+        bak_file_name = Utils.create_backup_name(self._config.database_name, self._config.label, 'bak')
         bak_full_path = f'{self._config.full_path_to_backups}\\{bak_file_name}'
         if not os.path.exists(self._config.full_path_to_backups):
             os.makedirs(self._config.full_path_to_backups)

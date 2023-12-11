@@ -1,3 +1,4 @@
+import re
 import subprocess
 from typing import List
 from botocore.exceptions import ClientError
@@ -108,8 +109,8 @@ class PgBaseBackupCreateError(Exception):
     @staticmethod
     def _convert_message(msg: str) -> str:
         if "could not get write-ahead log end position" in msg and "has already been removed" in msg:
-            return "Нужно увеличить значение wal_keep_segments (""количество временно хранимых WAL-файлов"", по ум. 0) " \
-                   "в postgresql.conf или обновить PG на версию выше 9. " \
+            return "Нужно увеличить значение wal_keep_segments " \
+                   "(""количество временно хранимых WAL-файлов"", по ум. 0) в postgresql.conf" \
                    "Суть проблемы - пока создавался бэкап сгенерировался 1 или несколько новых WAL-файлов, " \
                    "хранение которых не ""укладывается"" в параметр wal_keep_segments"
         return msg
@@ -145,10 +146,18 @@ class PgDumpRunError(Exception):
             error_text = str(exception)
 
         msg = self.MSG_TEMPLATE.format(
-            error_text=error_text,
+            error_text=self._convert_message(error_text),
             command=exception.cmd
         )
         super().__init__(msg)
+
+    @staticmethod
+    def _convert_message(msg: str) -> str:
+        if re.search('database\s+"[^"]+"\s+does not exist', msg):
+            match = re.search(r'database\s+"([^"]+)"', msg)
+            database = f'{match.group(1)} ' if match else ''
+            return f"База данных {database}не обнаружена"
+        return msg
 
 
 class PgDumpCreateError(Exception):
@@ -167,6 +176,8 @@ class PgDumpCreateError(Exception):
         if "invalid page in" in msg:
             return "База повреждена!"
         if "No space left on device" in msg:
+            return "Недостаточно свободного места на диске"
+        if "database" in msg and "does not exist":
             return "Недостаточно свободного места на диске"
         return msg
 
@@ -383,6 +394,7 @@ class AWSConnectionError(AWSError):
         if search_text in msg:
             return msg.replace(search_text, "Не удается установить соединение по адресу:")
         return msg
+
 
 class RansomwareVirusTracesFound(Exception):
     MSG_TEMPLATE = (

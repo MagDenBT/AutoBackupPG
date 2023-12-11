@@ -20,17 +20,30 @@ class Cleaner(Executor):
 
     def _clean_backups_of_all_types(self) -> None:
         for backup_type_dir in self._config.backup_type_dirs.values():
-            self._clean_backups(f'{self._config.full_path_to_backups}\\{backup_type_dir}')
+            path_to_backups = f'{self._config.full_path_to_backups}\\{backup_type_dir}'
+            base_names = self._get_base_names(path_to_backups)
+            for base_name in base_names:
+                self._clean_backups(path_to_backups, base_name)
 
         self._delete_manifest_files_without_backup()
 
         Utils.delete_local_empty_dirs([self._config.full_path_to_backups])
-        
+
         if self._config.handle_wal_files:
             self._clean_wals()
 
-    def _clean_backups(self, path_to_backups: str):
+    @staticmethod
+    def _get_base_names(path_to_backups: str) -> [str]:
         backups = Utils.get_objects_on_disk(path_to_backups, only_files=True)
+        result = []
+        for backup in backups:
+            result.append(Utils.get_base_name_from_backup_by_separator(backup))
+        return set(result)
+
+    def _clean_backups(self, path_to_backups: str, base_name: str):
+        file_name_not_contain = AbstractConfig.backup_naming_separator if (base_name is None) else None
+        backups = Utils.get_objects_on_disk(path_to_backups, mask=base_name,
+                                            not_contain=file_name_not_contain, only_files=True)
         backups_with_dates = self._get_backups_with_dates(backups)
 
         # noinspection PyTypeChecker

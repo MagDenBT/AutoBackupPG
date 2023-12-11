@@ -26,7 +26,7 @@ class Utils:
         return len(files) > 0
 
     @staticmethod
-    def get_objects_on_disk(path, mask=None, or_second_mask=None, only_files=True) -> List[str]:
+    def get_objects_on_disk(path, mask=None, or_second_mask=None, only_files=True,not_contain: str = None) -> List[str]:
         objects_list = []
         for root, dirs, files in os.walk(path):
             total_files_in_dir = len(files)
@@ -34,6 +34,10 @@ class Utils:
             temp = []
             for filename in files:
                 current_amount_in_dir += 1
+                if not_contain is not None:
+                    if not_contain in filename:
+                        continue
+
                 if mask is not None:
                     if mask in filename:
                         objects_list.append(os.path.join(root, filename))
@@ -59,6 +63,9 @@ class Utils:
                 for _dir in dirs:
                     if mask is not None:
                         if mask not in _dir:
+                            continue
+                    if not_contain is not None:
+                        if not_contain in _dir:
                             continue
                     objects_list.append(os.path.join(root, _dir))
 
@@ -178,3 +185,20 @@ class Utils:
                 return encode_bytes.decode(errors='replace')
             except Exception as e:
                 return f'Не удалось определить кодировку текста ошибки - {str(e)}'
+
+    @staticmethod
+    def create_backup_name(base_name: str, label: str, extension: str) -> str:
+        from src.ds_database_backup.configs import AbstractConfig
+        return f'{base_name}_{AbstractConfig.backup_naming_separator}_{label}.{extension}'
+
+    @staticmethod
+    def get_base_name_from_backup_by_separator(path_to_backup: str):
+        from src.ds_database_backup.configs import AbstractConfig
+
+        normalized_path_parts = os.path.normpath(path_to_backup).split(os.sep)
+        file_name = normalized_path_parts[len(normalized_path_parts) - 1]
+
+        if AbstractConfig.backup_naming_separator in file_name:
+            return file_name.split(AbstractConfig.backup_naming_separator)[0]
+        else:
+            return None
