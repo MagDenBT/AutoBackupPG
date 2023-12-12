@@ -188,12 +188,12 @@ class Utils:
 
     @staticmethod
     def create_backup_name(base_name: str, label: str, extension: str) -> str:
-        from src.ds_database_backup.configs import AbstractConfig
+        from .configs import AbstractConfig
         return f'{base_name}_{AbstractConfig.backup_naming_separator}_{label}.{extension}'
 
     @staticmethod
     def get_base_name_from_backup_by_separator(path_to_backup: str):
-        from src.ds_database_backup.configs import AbstractConfig
+        from .configs import AbstractConfig
 
         normalized_path_parts = os.path.normpath(path_to_backup).split(os.sep)
         file_name = normalized_path_parts[len(normalized_path_parts) - 1]
