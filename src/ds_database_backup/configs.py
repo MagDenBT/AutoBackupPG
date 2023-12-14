@@ -223,7 +223,7 @@ class ConfigPgBaseBackuper(AbstractConfig):
 
     @property
     def temp_path(self) -> str:
-        val = f'{self.full_path_to_backups}\\temp' if self._temp_path == '' else self._temp_path == ''
+        val = f'{self.path_to_backups}\\temp{self.backup_type_dir}' if self._temp_path == '' else self._temp_path == ''
         return val
 
     def set_temp_path(self, value: str):
@@ -343,7 +343,7 @@ class ConfigPgDumpBackuper(AbstractConfig):
 
     @property
     def temp_path(self) -> str:
-        val = f'{self.full_path_to_backups}\\temp' if self._temp_path == '' else self._temp_path == ''
+        val = f'{self.path_to_backups}\\temp{self.backup_type_dir}' if self._temp_path == '' else self._temp_path == ''
         return val
 
     def set_temp_path(self, value: str):

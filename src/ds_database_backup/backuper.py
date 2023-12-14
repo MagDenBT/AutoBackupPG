@@ -10,6 +10,8 @@ from .utils import Utils
 
 class PgBaseBackuper(Executor):
 
+    _gzip_backup_name = 'base.tar.gz'
+
     def __init__(self, config: ConfigPgBaseBackuper):
         super(PgBaseBackuper, self).__init__(config)
         self._config = config
@@ -35,10 +37,8 @@ class PgBaseBackuper(Executor):
                      '--label', self._config.label,
                      '--no-password',
                      '--username', self._config.postgresql_username,
-                     ]
-
-        if not self._config.use_external_archiver:
-            comm_args.append('--gzip')
+                     '--gzip',
+                     '--no-manifest']
 
         if self._config.pg_port is not None and self._config.pg_port != '':
             comm_args.extend(['-p', self._config.pg_port])
@@ -68,7 +68,7 @@ class PgBaseBackuper(Executor):
                     os.remove(f'{path}\\{_obj}')
 
     def _archive_with_external_tool(self):
-        comm_args = f'"{self._config.path_to_7zip}" a -ttar -so -sdel -an "{self._config.temp_path}\\"*' \
+        comm_args = f'"{self._config.path_to_7zip}" x -so -sdel "{self._config.temp_path}\\{self._gzip_backup_name}"' \
                     f' | "{self._config.path_to_7zip}" a -si' \
                     f' "{self._config.full_path_to_backups}\\{self._config.label}__base.txz" '
 
@@ -80,7 +80,7 @@ class PgBaseBackuper(Executor):
             finally:
                 raise ArchiveCreateError(e)
 
-    def _move_to_permanent_dir(self, create_subdir=True):
+    def _move_to_permanent_dir(self, create_subdir=False):
         label = self._config.label
         files = Utils.get_objects_on_disk(self._config.temp_path)
         target_dir = self._config.full_path_to_backups
