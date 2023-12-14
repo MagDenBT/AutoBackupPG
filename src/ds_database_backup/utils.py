@@ -1,6 +1,7 @@
 import datetime
 import hashlib
 import os
+import shutil
 from typing import List
 
 import tzlocal
@@ -26,7 +27,8 @@ class Utils:
         return len(files) > 0
 
     @staticmethod
-    def get_objects_on_disk(path, mask=None, or_second_mask=None, only_files=True,not_contain: str = None) -> List[str]:
+    def get_objects_on_disk(path, mask=None, or_second_mask=None, only_files=True, not_contain: str = None) -> List[
+        str]:
         objects_list = []
         for root, dirs, files in os.walk(path):
             total_files_in_dir = len(files)
@@ -202,3 +204,9 @@ class Utils:
             return file_name.split(AbstractConfig.backup_naming_separator)[0]
         else:
             return None
+
+    @staticmethod
+    def delete_old_temp_dir():
+        normalized_path = os.path.normpath('./temp')
+        if os.path.exists('./temp'):
+            shutil.rmtree('./temp')

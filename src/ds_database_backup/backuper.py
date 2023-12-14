@@ -111,6 +111,7 @@ class PgDumpBackuper(Executor):
         self._create_backup()
 
     def _create_backup(self):
+        Utils.delete_old_temp_dir()
         for base_name in self._get_bases_list():
             dump_name = Utils.create_backup_name(base_name, self._config.label, 'dump')
             dump_full_path = f'{self._config.full_path_to_backups}\\{dump_name}'
