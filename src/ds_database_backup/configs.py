@@ -680,6 +680,7 @@ class ConfigCleaner(AbstractConfig):
     _backups_leave_amount: int = 0
     _keep_one_backup_per_day: bool = True
     _storage_time: int = 99999999
+    _leave_only_last_full_pg_backup: bool = False
 
     def _mandatory_properties_for_check(self) -> List[str]:
         return [
@@ -738,6 +739,14 @@ class ConfigCleaner(AbstractConfig):
 
     def set_storage_time(self, value: int):
         self._storage_time = value
+
+    # Грубая врезка. Надо подумать как встроить в архитектуру
+    @property
+    def leave_only_last_full_pg_backup(self) -> bool:
+        return self._leave_only_last_full_pg_backup
+
+    def set_leave_only_last_full_pg_backup(self, value: bool):
+        self._leave_only_last_full_pg_backup = value
 
     # Properties without class fields
     @property

@@ -5,6 +5,7 @@ from .utils import Utils
 
 
 class Cleaner(Executor):
+    _current_backup_type_dir_is_full_pg = ''
 
     def __init__(self, config: ConfigCleaner):
         super().__init__(config)
@@ -20,6 +21,7 @@ class Cleaner(Executor):
 
     def _clean_backups_of_all_types(self) -> None:
         for backup_type_dir in self._config.backup_type_dirs.values():
+            self._current_backup_type_dir_is_full_pg = backup_type_dir == self._config.backup_type_dirs.get('full')
             path_to_backups = f'{self._config.full_path_to_backups}\\{backup_type_dir}'
             base_names = self._get_base_names(path_to_backups)
             for base_name in base_names:
@@ -104,21 +106,30 @@ class Cleaner(Executor):
                 total_backups += 1
             i += 1
 
-        leave_amount = self._config.backups_leave_amount
-        amount_to_delete = total_backups - leave_amount - 1 if total_backups >= leave_amount else 0
+        leave_amount = self.get_leave_amount()
+        skip_last = not (self._current_backup_type_dir_is_full_pg and self._config.leave_only_last_full_pg_backup)
+        last_backup_amount = 1 if skip_last else 0
+        amount_to_delete = total_backups - leave_amount - last_backup_amount if total_backups >= leave_amount else 0
         items = list(sorted_backups.items())
-        is_first = True
+
         i = 0
         while i < len(items):
             backup, backup_date = items[i]
+            i += 1
             if '_backup_manifest' not in backup:
-                if is_first:
-                    is_first = False
+                if skip_last:
+                    skip_last = False
+                    continue
                 elif amount_to_delete > 0:
                     os.remove(backup)
                     sorted_backups.pop(backup)
                     amount_to_delete -= 1
-            i += 1
+
+    def get_leave_amount(self):
+        if self._current_backup_type_dir_is_full_pg and self._config.leave_only_last_full_pg_backup:
+            return 1
+        else:
+            return self._config.backups_leave_amount
 
     def _delete_manifest_files_without_backup(self):
         manifests_list = Utils.get_objects_on_disk(self._config.full_path_to_backups, mask='_backup_manifest',

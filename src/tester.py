@@ -74,6 +74,7 @@ class CleanerSet:
         'backups_leave_amount': 3,
         'keep_one_backup_per_day': True,
         'storage_time': 7 * 24 * 60 * 60,
+        'leave_only_last_full_pg_backup': True
     }
 
     wal_config = config.copy()
@@ -198,7 +199,7 @@ class BackupTestCases:
             config = self._config.copy()
 
             DsBuilder \
-                .build(ModuleFinder.MS_SQL_BACKUPER) \
+                .build(ModuleFinder.find_by_name('MS_SQL_BACKUPER')) \
                 .initialize_config(config) \
                 .start()
 
@@ -207,7 +208,7 @@ class BackupTestCases:
             config.update({'temp_path': "C:\\Program Files\\1C\AgentETP\\SystemAdministrationCenter\\Scripts\\temp"})
             config.update({'path_to_7zip': CommonSet.path_to_7zip})
             DsBuilder \
-                .build(ModuleFinder.MS_SQL_BACKUPER) \
+                .build(ModuleFinder.find_by_name('MS_SQL_BACKUPER')) \
                 .initialize_config(config) \
                 .start()
 
@@ -251,28 +252,28 @@ def run_backup_test_cases():
     time.sleep(0)
     backup_test_cases.PG().create_dump_by_base_name_with_archiver_rom() #1
     time.sleep(0)
-    # backup_test_cases.PG().create_dumps_for_all_bases_rom() #3
-    # time.sleep(0)
-    # backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_rom() #3
+    backup_test_cases.PG().create_dumps_for_all_bases_rom() #3
+    time.sleep(0)
+    backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_rom() #3
     time.sleep(0)
 
     backup_test_cases.PG().create_dump_by_base_name_RAM() #1
     time.sleep(0)
     backup_test_cases.PG().create_dump_by_base_name_with_archiver_RAM() #1
     time.sleep(0)
-    # backup_test_cases.PG().create_dumps_for_all_bases_RAM() #3
-    # time.sleep(0)
-    # backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_RAM() #3
-    # time.sleep(0)
-    #
+    backup_test_cases.PG().create_dumps_for_all_bases_RAM() #3
+    time.sleep(0)
+    backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_RAM() #3
+    time.sleep(0)
+    # #
     # backup_test_cases.PG().create_pg_base()
-    # time.sleep(1)
+    # # time.sleep(1)
     # backup_test_cases.PG().create_pg_base_with_archiver()
-    # time.sleep(0)
-    #
-    # backup_test_cases.OneC().create()
-    # time.sleep(0)
-    #
+    # # time.sleep(0)
+    # #
+    # # backup_test_cases.OneC().create()
+    # # time.sleep(0)
+    # #
     # backup_test_cases.MsSql().create()
     # time.sleep(1)
     # backup_test_cases.MsSql().create_with_archiver()
@@ -293,4 +294,5 @@ def run_cloud_sync_test_cases():
 
 
 # run_cleaner_test_cases()
-run_cloud_sync_test_cases()
+# run_cloud_sync_test_cases()
+run_cleaner_test_cases()

@@ -12,5 +12,6 @@ default-values:
   keep_one_backup_per_day: True
   customer_work_start: 9
   customer_work_end: 20
+  leave_only_last_full_pg_backup: True
 
 
