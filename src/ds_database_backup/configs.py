@@ -17,6 +17,7 @@ class AbstractConfig(ABC):
         'mssql': 'MS_SQL'
     }
     backup_naming_separator: str = '_%!s!%_'
+    default_temp_dir = 'temp_'
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -223,7 +224,8 @@ class ConfigPgBaseBackuper(AbstractConfig):
 
     @property
     def temp_path(self) -> str:
-        val = f'{self.path_to_backups}\\temp{self.backup_type_dir}' if self._temp_path == '' else self._temp_path == ''
+        temp_dir = f'temp\\{super(ConfigPgBaseBackuper, self).default_temp_dir}_{self.label}'
+        val = f'{self.path_to_backups}\\{temp_dir}' if self._temp_path == '' else f'{self._temp_path}\\{temp_dir}'
         return val
 
     def set_temp_path(self, value: str):
@@ -343,7 +345,8 @@ class ConfigPgDumpBackuper(AbstractConfig):
 
     @property
     def temp_path(self) -> str:
-        val = f'{self.path_to_backups}\\temp{self.backup_type_dir}' if self._temp_path == '' else self._temp_path == ''
+        temp_dir = f'temp\\{super(ConfigPgDumpBackuper, self).default_temp_dir}_{self.label}'
+        val = f'{self.path_to_backups}\\{temp_dir}' if self._temp_path == '' else f'{self._temp_path}\\{temp_dir}'
         return val
 
     def set_temp_path(self, value: str):

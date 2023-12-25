@@ -172,6 +172,46 @@ class Utils:
         return delete_it
 
     @staticmethod
+    def delete_unused_temp_dirs(path_to_current_temp: str):
+        if not os.path.exists(path_to_current_temp):
+            return
+        from .configs import AbstractConfig
+
+        root_path = os.path.dirname(path_to_current_temp)
+        shutil.rmtree(path_to_current_temp)
+
+        for root, dirs, files in os.walk(root_path):
+            for _dir in dirs:
+                if not _dir.startswith(AbstractConfig.default_temp_dir):
+                    continue
+                current_path = os.path.join(root, _dir)
+                dir_time = os.path.getmtime(os.path.join(root, _dir))
+                delta_in_hours = (datetime.datetime.now().timestamp() - dir_time) / 60 * 60
+                if delta_in_hours >= 24:
+                    shutil.rmtree(current_path)
+
+        objects_in_path = os.listdir(root_path)
+        if len(objects_in_path) == 0:
+            # noinspection PyBroadException
+            try:
+                os.rmdir(root_path)
+            except:
+                pass
+
+    @staticmethod
+    def _delete_dir_if_created_more_than_1_day_ago(path: str) -> bool:
+        delete_it = True
+        for root, dirs, files in os.walk(path):
+            for _dir in dirs:
+                delete_it = Utils._delete_dir_if_empty(os.path.join(root, _dir))
+            for _ in files:
+                delete_it = False
+                break
+        if delete_it:
+            os.rmdir(path)
+        return delete_it
+
+    @staticmethod
     def decode_text_or_return_error_msg(encode_bytes: bytes) -> str:
         if len(encode_bytes) == 0:
             return ''

@@ -24,7 +24,7 @@ class PgBaseBackuper(Executor):
         self._create_backup()
 
     def _create_backup(self):
-        self._clear_dir(self._config.temp_path)
+        Utils.delete_unused_temp_dirs(self._config.temp_path)
         if not os.path.exists(self._config.temp_path):
             os.makedirs(self._config.temp_path)
 
@@ -57,15 +57,7 @@ class PgBaseBackuper(Executor):
             self._archive_with_external_tool()
         else:
             self._move_to_permanent_dir()
-        shutil.rmtree(self._config.temp_path)
-
-    @staticmethod
-    def _clear_dir(path):
-        # clear the directory of any files
-        if os.path.exists(path):
-            for _obj in os.listdir(path):
-                if os.path.exists(f'{path}\\{_obj}'):
-                    os.remove(f'{path}\\{_obj}')
+        Utils.delete_unused_temp_dirs(self._config.temp_path)
 
     def _archive_with_external_tool(self):
         comm_args = f'"{self._config.path_to_7zip}" x -so -sdel "{self._config.temp_path}\\{self._gzip_backup_name}"' \
@@ -112,6 +104,7 @@ class PgDumpBackuper(Executor):
 
     def _create_backup(self):
         Utils.delete_old_temp_dir()
+        Utils.delete_unused_temp_dirs(self._config.temp_path)
         for base_name in self._get_bases_list():
             dump_name = Utils.create_backup_name(base_name, self._config.label, 'dump')
             dump_full_path = f'{self._config.full_path_to_backups}\\{dump_name}'
@@ -120,6 +113,7 @@ class PgDumpBackuper(Executor):
 
             if self._config.use_temp_dump:
                 self._create_through_rom(dump_full_path, base_name)
+                Utils.delete_unused_temp_dirs(self._config.temp_path)
             else:
                 self._create_through_stdout(dump_full_path, base_name)
 
@@ -213,8 +207,6 @@ class PgDumpBackuper(Executor):
 
         if self._config.use_external_archiver:
             self._archive_with_external_tool(dump_full_path, finish_dump_path)
-        if os.path.exists(self._config.temp_path):
-            shutil.rmtree(self._config.temp_path)
 
     def _specific_base_command_through_rom(self, dump_full_path, base_name):
         comm_args = [self._config.pg_dump,
