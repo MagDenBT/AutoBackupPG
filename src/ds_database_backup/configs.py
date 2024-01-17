@@ -499,7 +499,7 @@ class ConfigMsSqlBackuper(AbstractConfig):
         return self._ms_sql_password
 
     def set_ms_sql_password(self, value: str):
-        self._ms_sql_password = value
+        self._ms_sql_password = str(value)
 
     @property
     def path_to_7zip(self) -> str:

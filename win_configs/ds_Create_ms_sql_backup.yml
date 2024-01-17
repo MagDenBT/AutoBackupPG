@@ -7,8 +7,8 @@ external-values:
 default-values:
   time-limit: 36000
   module_name: "MS_SQL_BACKUPER"
-  ms_sql_username: ''
-  ms_sql_password: ''
+  ms_sql_username: ""
+  ms_sql_password: ""
   path_to_7zip: "./7zip"
   customer_work_start: 9
   customer_work_end: 20
