@@ -178,7 +178,7 @@ class PgDumpCreateError(Exception):
         if "No space left on device" in msg:
             return "Недостаточно свободного места на диске"
         if "database" in msg and "does not exist":
-            return "Недостаточно свободного места на диске"
+            return "База данных не найдена (проверьте имя базы)"
         return msg
 
 
