@@ -37,8 +37,8 @@ class PgBaseBackuper(Executor):
                      '--label', self._config.label,
                      '--no-password',
                      '--username', self._config.postgresql_username,
-                     '--gzip',
-                     '--no-manifest']
+                     '--gzip']
+        self._add_no_manifest_key(comm_args)
 
         if self._config.pg_port is not None and self._config.pg_port != '':
             comm_args.extend(['-p', self._config.pg_port])
@@ -87,6 +87,31 @@ class PgBaseBackuper(Executor):
         for file in files:
             shutil.move(file,
                         f'{target_dir}\\{label}__{os.path.basename(file)}')
+
+    def _add_no_manifest_key(self, target_args):
+        current_pg_version = self._get_pg_version()
+        min_version_supports_manifest = 13
+        if current_pg_version >= min_version_supports_manifest:
+            target_args.append('--no-manifest')
+
+    def _get_pg_version(self):
+        my_env = os.environ.copy()
+        my_env["PGPASSWORD"] = self._config.postgresql_password
+        psql = self._config.postgresql_instance_path + '\\bin\\psql'
+        comm_args = [psql,
+                     '-U', self._config.postgresql_username,
+                     '-V']
+
+        process = subprocess.run(
+            comm_args,
+            stdout=subprocess.PIPE,
+            env=my_env,
+        )
+
+        message_from_server = Utils.decode_text_or_return_error_msg(process.stdout).strip()
+        normalized_message = [s.strip() for s in message_from_server.split(' ')]
+        pg_version_str = normalized_message[2]
+        return int(pg_version_str.split('.')[0])
 
 
 class PgDumpBackuper(Executor):
