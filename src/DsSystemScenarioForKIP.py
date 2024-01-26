@@ -50,7 +50,7 @@ class DsSystemScenarioForKIP(BaseScenario):
 
             global_logger.info(message=f'Завершено {self.ds_module_name}')
         except Exception as error:
-            raise SACError("RUNTIME_ERROR", f'{self.ds_module_name}: {error.args}')
+            raise SACError("RUNTIME_ERROR", f'{self.ds_module_name}: {error.with_traceback()}')
 
     def _prepare_scenario_config(self):
         kip_context = self.config.scenario_context

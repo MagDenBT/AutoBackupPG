@@ -113,6 +113,9 @@ class PgBaseBackupCreateError(Exception):
                    "(""количество временно хранимых WAL-файлов"", по ум. 0) в postgresql.conf" \
                    "Суть проблемы - пока создавался бэкап сгенерировался 1 или несколько новых WAL-файлов, " \
                    "хранение которых не ""укладывается"" в параметр wal_keep_segments"
+        if "pg_basebackup" in msg and "incompatible server version" in msg:
+            return "Внешняя утилита pg_basebackup.exe несовместима в версией сервера. " \
+                   "Запустите скрипт без указания пути до pg_basebackup или обновите указанный pg_basebackup"
         return msg
 
 
