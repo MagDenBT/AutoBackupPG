@@ -2,14 +2,15 @@ import os
 import shutil
 import subprocess
 from .exceptions import PgBaseBackupCreateError, \
-    ArchiveCreateError, PgDumpRunError, PgDumpCreateError, OneCFBBackupCreateError, MsSqlCreateError
-from .configs import ConfigPgBaseBackuper, ConfigPgDumpBackuper, Config1CFBBackuper, ConfigMsSqlBackuper
+    ArchiveCreateError, PgDumpRunError, PgDumpCreateError, OneCFBBackupCreateError, MsSqlCreateError, \
+    GitBackupCreateError
+from .configs import ConfigPgBaseBackuper, ConfigPgDumpBackuper, Config1CFBBackuper, ConfigMsSqlBackuper, \
+    ConfigGitBackuper
 from .executor import Executor
 from .utils import Utils
 
 
 class PgBaseBackuper(Executor):
-
     _gzip_backup_name = 'base.tar.gz'
 
     def __init__(self, config: ConfigPgBaseBackuper):
@@ -148,6 +149,7 @@ class PgDumpBackuper(Executor):
 
         my_env = os.environ.copy()
         my_env["PGPASSWORD"] = self._config.postgresql_password
+        # noinspection SqlNoDataSourceInspection
         comm_args = [self._config.pgsql,
                      '-U', self._config.postgresql_username,
                      '-c',
@@ -270,6 +272,7 @@ class OneCFbBackuper(Executor):
         self._create_backup()
 
     def _create_backup(self) -> None:
+        # noinspection DuplicatedCode
         backup_name = Utils.create_backup_name(self._config.cd_file_name, self._config.label, 'xz')
         target_file = f'{self._config.full_path_to_backups}\\{backup_name}'
         comm_args = [f'{self._config.path_to_7zip}', 'a', target_file, '-ssw', self._config.path_to_1c_db_dir]
@@ -350,3 +353,32 @@ class MsSqlBackuper(Executor):
             subprocess.check_output(comm_args, stderr=subprocess.PIPE, shell=True)
         except Exception as e:
             raise ArchiveCreateError(e)
+
+
+class GitBackuper(Executor):
+
+    def __init__(self, config: ConfigGitBackuper):
+        super().__init__(config)
+        self._config = config
+
+    @staticmethod
+    def config_class():
+        return ConfigGitBackuper
+
+    def start(self):
+        self._create_backup()
+
+    def _create_backup(self) -> None:
+        # noinspection DuplicatedCode
+        backup_name = Utils.create_backup_name(self._config.backup_type_dir, self._config.label, '7z')
+        target_file = f'{self._config.full_path_to_backups}\\{backup_name}'
+        comm_args = [f'{self._config.path_to_7zip}', 'a', target_file, '-ssw', self._config.path_to_git]
+
+        process = subprocess.run(
+            comm_args,
+            stderr=subprocess.PIPE
+        )
+
+        text_error = Utils.decode_text_or_return_error_msg(process.stderr)
+        if text_error:
+            raise GitBackupCreateError(text_error)

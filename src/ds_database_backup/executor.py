@@ -24,7 +24,7 @@ class Executor(ABC):
 
 
 class ModuleFinder(Enum):
-    from .backuper import PgBaseBackuper, PgDumpBackuper, OneCFbBackuper, MsSqlBackuper
+    from .backuper import PgBaseBackuper, PgDumpBackuper, OneCFbBackuper, MsSqlBackuper, GitBackuper
     from .local_cleaner import Cleaner
     from .cloud_sync import AWSClient
 
@@ -32,6 +32,7 @@ class ModuleFinder(Enum):
     PG_DUMP_BACKUPER = PgDumpBackuper
     ONE_C_FB_BACKUPER = OneCFbBackuper
     MS_SQL_BACKUPER = MsSqlBackuper
+    GIT_BACKUPER = GitBackuper
 
     CLEANER = Cleaner
 

@@ -424,3 +424,15 @@ class AWSSpeedAutoAdjustmentError(Exception):
             speed_kbit_s=speed_kbit_s,
         )
         super().__init__(msg)
+
+
+class GitBackupCreateError(Exception):
+    MSG_TEMPLATE = (
+        'Ошибка при создании бэкапа Git - {error_text}'
+    )
+
+    def __init__(self, error_text):
+        msg = self.MSG_TEMPLATE.format(
+            error_text=error_text,
+        )
+        super().__init__(msg)

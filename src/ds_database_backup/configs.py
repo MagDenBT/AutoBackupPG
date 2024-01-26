@@ -14,7 +14,8 @@ class AbstractConfig(ABC):
         'full': 'Full',
         'dumps': 'Dumps',
         'onec': 'OneC_file_bases',
-        'mssql': 'MS_SQL'
+        'mssql': 'MS_SQL',
+        'git': 'Git'
     }
     backup_naming_separator: str = '_%!s!%_'
     default_temp_dir = 'temp_'
@@ -78,7 +79,7 @@ class AbstractConfig(ABC):
         if failed_properties:
             raise DrivesNotExist(failed_properties)
 
-    def _check_paths_properties(self, paths_properties:  List[Dict[str, bool]]):
+    def _check_paths_properties(self, paths_properties: List[Dict[str, bool]]):
         failed_paths = {}
         failed_files = {}
 
@@ -759,3 +760,66 @@ class ConfigCleaner(AbstractConfig):
     @property
     def handle_wal_files(self) -> bool:
         return self._path_to_wal_files != ''
+
+
+class ConfigGitBackuper(AbstractConfig):
+    _path_to_backups: str = ''
+    _custom_dir: str = ''
+
+    _path_to_git: str = ''
+    _path_to_7zip: str = ''
+
+    def _mandatory_properties_for_check(self) -> List[str]:
+        return [
+            'path_to_backups',
+            'custom_dir',
+            'path_to_git',
+            'path_to_7zip',
+        ]
+
+    def _paths_properties_for_check(self) -> List[Dict[str, bool]]:
+        return [
+            {'path_to_git': False},
+            {'path_to_7zip': True}
+        ]
+
+    @property
+    def path_to_backups(self) -> str:
+        return self._path_to_backups
+
+    def set_path_to_backups(self, value: str):
+        super()._check_disk_for_parameter(value, 'path_to_backups')
+        self._path_to_backups = value
+
+    @property
+    def custom_dir(self) -> str:
+        return self._custom_dir
+
+    def set_custom_dir(self, value: str):
+        self._custom_dir = value
+
+    @property
+    def path_to_git(self) -> str:
+        return self._path_to_git
+
+    def set_path_to_git(self, value: str):
+        super()._check_disk_for_parameter(value, 'path_to_git')
+        self._path_to_git = value
+
+    @property
+    def path_to_7zip(self) -> str:
+        return self._path_to_7zip
+
+    def set_path_to_7zip(self, value: str):
+        super()._check_disk_for_parameter(value, 'path_to_7zip')
+        self._path_to_7zip = value + '\\7za.exe'
+
+    # Properties without class fields
+
+    @property
+    def backup_type_dir(self):
+        return super(ConfigGitBackuper, self).backup_type_dirs.get('git')
+
+    @property
+    def full_path_to_backups(self) -> str:
+        return f'{self._path_to_backups}\\{self._custom_dir}\\{self.backup_type_dir}'

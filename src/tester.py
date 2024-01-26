@@ -4,8 +4,7 @@ import time
 
 import psutil
 
-
-from src.ds_database_backup.executor import DsBuilder, ModuleFinder
+from ds_database_backup.executor import DsBuilder, ModuleFinder
 
 
 class CommonSet:
@@ -14,7 +13,7 @@ class CommonSet:
 
     path_to_backups = r'C:\backup'
     custom_dir = r'Sales depart'
-    path_to_7zip = r'./src/7zip'
+    path_to_7zip = r'C:\backup\test_suite\7zip'
     access_key_id = _cfg.get('Ob', 'key_id')
     secret_access_key = _cfg.get('Ob', 'key')
     bucket = _cfg.get('Ob', 'bucket')
@@ -52,6 +51,11 @@ class BackupersSet:
 
     ms_sql = {
         'database_name': r'kip',
+    }
+
+    git = {
+        'path_to_git': r'C:\git\mpr_2_3_11_375\.git\logs',
+        'path_to_7zip': CommonSet.path_to_7zip,
     }
 
 
@@ -212,6 +216,18 @@ class BackupTestCases:
                 .initialize_config(config) \
                 .start()
 
+    class Git:
+        _config = BackupersSet.base.copy()
+        _config.update(BackupersSet.git)
+
+        def create(self):
+            config = self._config.copy()
+
+            DsBuilder \
+                .build(ModuleFinder.find_by_name('GIT_BACKUPER')) \
+                .initialize_config(config) \
+                .start()
+
 
 class CleanerTestCases:
     class LC:
@@ -248,35 +264,38 @@ class SyncTestCases:
 def run_backup_test_cases():
     backup_test_cases = BackupTestCases()
 
-    backup_test_cases.PG().create_dump_by_base_name_rom() #1
-    time.sleep(0)
-    backup_test_cases.PG().create_dump_by_base_name_with_archiver_rom() #1
-    time.sleep(0)
-    backup_test_cases.PG().create_dumps_for_all_bases_rom() #3
-    time.sleep(0)
-    backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_rom() #3
-    time.sleep(0)
-
-    backup_test_cases.PG().create_dump_by_base_name_RAM() #1
-    time.sleep(0)
-    backup_test_cases.PG().create_dump_by_base_name_with_archiver_RAM() #1
-    time.sleep(0)
-    backup_test_cases.PG().create_dumps_for_all_bases_RAM() #3
-    time.sleep(0)
-    backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_RAM() #3
-    time.sleep(0)
+    # backup_test_cases.PG().create_dump_by_base_name_rom() #1
+    # time.sleep(0)
+    # backup_test_cases.PG().create_dump_by_base_name_with_archiver_rom() #1
+    # time.sleep(0)
+    # backup_test_cases.PG().create_dumps_for_all_bases_rom() #3
+    # time.sleep(0)
+    # backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_rom() #3
+    # time.sleep(0)
+    #
+    # backup_test_cases.PG().create_dump_by_base_name_RAM() #1
+    # time.sleep(0)
+    # backup_test_cases.PG().create_dump_by_base_name_with_archiver_RAM() #1
+    # time.sleep(0)
+    # backup_test_cases.PG().create_dumps_for_all_bases_RAM() #3
+    # time.sleep(0)
+    # backup_test_cases.PG().create_dumps_for_all_bases_with_archiver_RAM() #3
+    # time.sleep(0)
     # #
     # backup_test_cases.PG().create_pg_base()
     # # time.sleep(1)
     # backup_test_cases.PG().create_pg_base_with_archiver()
-    # # time.sleep(0)
-    # #
-    # # backup_test_cases.OneC().create()
-    # # time.sleep(0)
-    # #
+    # time.sleep(0)
+    #
+    # backup_test_cases.OneC().create()
+    # time.sleep(0)
+    #
     # backup_test_cases.MsSql().create()
     # time.sleep(1)
     # backup_test_cases.MsSql().create_with_archiver()
+
+    backup_test_cases.Git().create()
+    time.sleep(0)
 
 
 def run_cleaner_test_cases():
@@ -286,6 +305,7 @@ def run_cleaner_test_cases():
     time.sleep(0)
     # Todo Проверить очистку WAL-файлов
 
+
 def run_cloud_sync_test_cases():
     sync_test_cases = SyncTestCases()
 
@@ -294,5 +314,5 @@ def run_cloud_sync_test_cases():
 
 
 # run_cleaner_test_cases()
-# run_cloud_sync_test_cases()
-run_cleaner_test_cases()
+run_cloud_sync_test_cases()
+# run_backup_test_cases()
