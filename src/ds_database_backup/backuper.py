@@ -61,7 +61,7 @@ class PgBaseBackuper(Executor):
         Utils.delete_unused_temp_dirs(self._config.temp_path)
 
     def _archive_with_external_tool(self):
-        comm_args = f'"{self._config.path_to_7zip}" x -so -sdel "{self._config.temp_path}\\{self._gzip_backup_name}"' \
+        comm_args = f'"{self._config.path_to_7zip}" x -so -sdel -mmt=1 "{self._config.temp_path}\\{self._gzip_backup_name}"' \
                     f' | "{self._config.path_to_7zip}" a -si' \
                     f' "{self._config.full_path_to_backups}\\{self._config.label}__base.txz" '
 
@@ -248,7 +248,7 @@ class PgDumpBackuper(Executor):
         return comm_args
 
     def _archive_with_external_tool(self, source, target):
-        comm_args = f'"{self._config.path_to_7zip}" a -sdel "{target}.xz" "{source}"'
+        comm_args = f'"{self._config.path_to_7zip}" a -sdel -mmt=1 "{target}.xz" "{source}"'
         try:
             subprocess.check_output(comm_args, stderr=subprocess.PIPE, shell=True)
         except Exception as e:
@@ -275,7 +275,8 @@ class OneCFbBackuper(Executor):
         # noinspection DuplicatedCode
         backup_name = Utils.create_backup_name(self._config.cd_file_name, self._config.label, 'xz')
         target_file = f'{self._config.full_path_to_backups}\\{backup_name}'
-        comm_args = [f'{self._config.path_to_7zip}', 'a', target_file, '-ssw', self._config.path_to_1c_db_dir]
+        comm_args = [f'{self._config.path_to_7zip}', 'a', ' -mmt=1', target_file, '-ssw',
+                     self._config.path_to_1c_db_dir]
 
         process = subprocess.run(
             comm_args,
@@ -348,7 +349,7 @@ class MsSqlBackuper(Executor):
 
     def _archive_with_external_tool(self, source):
         target = source + '.xz'
-        comm_args = f'"{self._config.path_to_7zip}" a -sdel "{target}" "{source}"'
+        comm_args = f'"{self._config.path_to_7zip}" a -sdel -mmt=1 "{target}" "{source}"'
         try:
             subprocess.check_output(comm_args, stderr=subprocess.PIPE, shell=True)
         except Exception as e:
