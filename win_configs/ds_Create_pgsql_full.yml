@@ -14,4 +14,5 @@ default-values:
   pg_port: ""
   customer_work_start: 9
   customer_work_end: 20
+  debug_mode: False
 

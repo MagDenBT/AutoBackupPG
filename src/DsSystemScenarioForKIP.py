@@ -39,6 +39,7 @@ class DsSystemScenarioForKIP(BaseScenario):
     def _real(self):
         self.__check_ds_scripts_version()
         self.ds_module_name = self.config["module_name"]
+        debug_mode = self.config.scenario_context.get("debug_mode") == True
         try:
             global_logger.info(message=f'Старт {self.ds_module_name}')
 
@@ -50,7 +51,10 @@ class DsSystemScenarioForKIP(BaseScenario):
 
             global_logger.info(message=f'Завершено {self.ds_module_name}')
         except Exception as error:
-            raise SACError("RUNTIME_ERROR", f'{self.ds_module_name}: {error.with_traceback()}')
+            if debug_mode:
+                raise error
+            else:
+                raise SACError("RUNTIME_ERROR", f'{self.ds_module_name}: {error}')
 
     def _prepare_scenario_config(self):
         kip_context = self.config.scenario_context

@@ -8,4 +8,5 @@ default-values:
   time-limit: 36000
   module_name: "GIT_BACKUPER"
   path_to_7zip: "./7zip"
+  debug_mode: False
 

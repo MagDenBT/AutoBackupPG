@@ -15,3 +15,4 @@ default-values:
   customer_work_start: 9
   customer_work_end: 20
   max_bandwidth_percent : 40
+  debug_mode: False
