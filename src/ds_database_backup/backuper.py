@@ -275,7 +275,7 @@ class OneCFbBackuper(Executor):
         # noinspection DuplicatedCode
         backup_name = Utils.create_backup_name(self._config.cd_file_name, self._config.label, 'xz')
         target_file = f'{self._config.full_path_to_backups}\\{backup_name}'
-        comm_args = [f'{self._config.path_to_7zip}', 'a', ' -mmt=1', target_file, '-ssw',
+        comm_args = [f'{self._config.path_to_7zip}', 'a', '-mmt=1', target_file, '-ssw',
                      self._config.path_to_1c_db_dir]
 
         process = subprocess.run(
