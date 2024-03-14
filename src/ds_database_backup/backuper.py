@@ -308,9 +308,11 @@ class MsSqlBackuper(Executor):
         process = subprocess.run(
             comm_args,
             stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
 
         self._throw_error_if_create_process_failed(process.stdout)
+        self._throw_error_if_create_process_failed(process.stderr)
 
         if self._config.use_external_archiver:
             self._archive_with_external_tool(finish_bak_path)
